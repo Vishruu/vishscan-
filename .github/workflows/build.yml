@@ -35,10 +35,9 @@ jobs:
           sudo apt update
           sudo apt install -y git zip unzip openjdk-17-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev cmake libffi-dev libssl-dev
 
-      - name: Install Android SDK
+      - name: Install Android SDK & Legacy Symlink
         run: |
           mkdir -p $ANDROID_HOME/cmdline-tools
-          # Skip download if the SDK tools are already cached
           if [ ! -d "$ANDROID_HOME/cmdline-tools/latest" ]; then
             cd $ANDROID_HOME/cmdline-tools
             wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
@@ -46,7 +45,13 @@ jobs:
             mv cmdline-tools latest
           fi
           
-          export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$PATH
+          # Create a symlink for python-for-android which expects tools/bin/sdkmanager
+          cd $ANDROID_HOME
+          if [ ! -e "tools" ]; then
+            ln -s cmdline-tools/latest tools
+          fi
+
+          export PATH=$ANDROID_HOME/tools/bin:$PATH
           yes | sdkmanager --licenses --sdk_root=$ANDROID_HOME
           sdkmanager --sdk_root=$ANDROID_HOME "platform-tools" "platforms;android-30" "build-tools;30.0.3"
 
@@ -56,7 +61,7 @@ jobs:
 
       - name: Build APK (with robust retry logic)
         run: |
-          export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$PATH
+          export PATH=$ANDROID_HOME/tools/bin:$PATH
           export PATH="$HOME/.local/bin:$PATH"
           
           # Unset preinstalled runner variables that conflict with python-for-android
