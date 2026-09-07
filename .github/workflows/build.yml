@@ -40,11 +40,11 @@ jobs:
         run: |
           pip install --user --upgrade pip buildozer cython
 
-      - name: Pre-download freetype from GitHub
+      - name: Pre-download freetype from SourceForge
         run: |
-          curl -L --create-dirs -o ~/.buildozer/android/platform/build-arm64-v8a_armeabi-v7a/packages/freetype/freetype-2.14.1.tar.gz \
-            https://github.com/freetype/freetype/releases/download/ver-2-14-1/freetype-2.14.1.tar.gz
-          touch ~/.buildozer/android/platform/build-arm64-v8a_armeabi-v7a/packages/freetype/.mark-freetype-2.14.1.tar.gz
+          curl -L --create-dirs -o ~/.buildozer/android/platform/build-arm64-v8a_armeabi-v7a/packages/freetype/freetype-2.13.3.tar.gz \
+            https://sourceforge.net/projects/freetype/files/freetype2/2.13.3/freetype-2.13.3.tar.gz
+          touch ~/.buildozer/android/platform/build-arm64-v8a_armeabi-v7a/packages/freetype/.mark-freetype-2.13.3.tar.gz
 
       - name: Build APK
         run: |
