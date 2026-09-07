@@ -68,7 +68,7 @@ jobs:
           # If both fail due to network drops, grab it from an alternative archival mirror
           if [ ! -f ~/.buildozer/cache/freetype-2.14.1.tar.gz ]; then
             curl -L -o ~/.buildozer/cache/freetype-2.14.1.tar.gz https://www.freedesktop.org/software/fontconfig/digro/freetype-2.14.1.tar.gz
-          }
+          fi
 
       - name: Build APK
         run: |
