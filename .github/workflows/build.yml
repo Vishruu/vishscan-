@@ -9,8 +9,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     env:
-      ANDROID_SDK_ROOT: ${{ runner.home }}/.buildozer/android/sdk
-      ANDROID_HOME: ${{ runner.home }}/.buildozer/android/platform/android-sdk
+      ANDROID_SDK_ROOT: /home/runner/.buildozer/android/sdk
+      ANDROID_HOME: /home/runner/.buildozer/android/platform/android-sdk
 
     steps:
       - name: Checkout code
@@ -36,7 +36,7 @@ jobs:
         with:
           path: |
             ~/.buildozer
-            ${{ runner.home }}/.buildozer/android/sdk
+            /home/runner/.buildozer/android/sdk
           key: ${{ runner.os }}-buildozer-${{ github.ref }}
           restore-keys: |
             ${{ runner.os }}-buildozer-
@@ -46,7 +46,6 @@ jobs:
           sudo apt update
           sudo apt install -y git zip unzip openjdk-17-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev cmake libffi-dev libssl-dev
 
-      # --- REPLACED STEP START ---
       - name: Install Android SDK and accept licenses
         run: |
           ANDROID_SDK_ROOT="$HOME/android-sdk"
@@ -59,7 +58,6 @@ jobs:
           export PATH="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$PATH"
           yes | sdkmanager --licenses
           sdkmanager "platform-tools" "platforms;android-30" "build-tools;30.0.3" "ndk;25.1.8937393"
-      # --- REPLACED STEP END ---
 
       - name: Pre-download freetype
         run: |
@@ -72,14 +70,12 @@ jobs:
         run: |
           python3 -m pip install --user --upgrade pip buildozer cython
 
-      # --- REPLACED BUILD STEP START ---
       - name: Build APK
         run: |
           export ANDROID_HOME="$HOME/android-sdk"
           export ANDROID_SDK_ROOT="$HOME/android-sdk"
           export PATH="$HOME/.local/bin:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH"
           buildozer android debug
-      # --- REPLACED BUILD STEP END ---
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
