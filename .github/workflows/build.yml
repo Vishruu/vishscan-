@@ -8,6 +8,9 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      ANDROID_SDK_ROOT: ${{ runner.home }}/.buildozer/android/sdk
+      ANDROID_HOME: ${{ runner.home }}/.buildozer/android/platform/android-sdk
 
     steps:
       - name: Checkout code
@@ -18,6 +21,26 @@ jobs:
         with:
           python-version: '3.10'
 
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pip
+            ~/.local/share/python
+          key: ${{ runner.os }}-pip-${{ github.ref }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Cache buildozer & Android SDK
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.buildozer
+            ${{ runner.home }}/.buildozer/android/sdk
+          key: ${{ runner.os }}-buildozer-${{ github.ref }}
+          restore-keys: |
+            ${{ runner.os }}-buildozer-
+
       - name: Install system dependencies
         run: |
           sudo apt update
@@ -25,7 +48,6 @@ jobs:
 
       - name: Install Android SDK and accept licenses
         run: |
-          ANDROID_SDK_ROOT="$HOME/.buildozer/android/sdk"
           mkdir -p "$ANDROID_SDK_ROOT"
           cd "$ANDROID_SDK_ROOT"
           wget -q https://dl.google.com/android/repository/commandlinetools-linux-11217075_latest.zip -O cmdline_tools.zip
@@ -55,7 +77,6 @@ jobs:
 
       - name: Build APK
         run: |
-          export ANDROID_HOME="$HOME/.buildozer/android/platform/android-sdk"
           export PATH="$HOME/.local/bin:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH"
           buildozer android debug
 
