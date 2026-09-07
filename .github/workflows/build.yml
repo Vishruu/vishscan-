@@ -46,23 +46,20 @@ jobs:
           sudo apt update
           sudo apt install -y git zip unzip openjdk-17-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev cmake libffi-dev libssl-dev
 
+      # --- REPLACED STEP START ---
       - name: Install Android SDK and accept licenses
         run: |
+          ANDROID_SDK_ROOT="$HOME/android-sdk"
           mkdir -p "$ANDROID_SDK_ROOT"
           cd "$ANDROID_SDK_ROOT"
           wget -q https://dl.google.com/android/repository/commandlinetools-linux-11217075_latest.zip -O cmdline_tools.zip
           unzip -q cmdline_tools.zip
           mkdir -p cmdline-tools/latest
-          if [ -d tools ]; then
-            mv tools cmdline-tools/latest
-          elif [ -d cmdline-tools ]; then
-            mv cmdline-tools/* cmdline-tools/latest || true
-          fi
+          mv cmdline-tools/* cmdline-tools/latest 2>/dev/null || true
           export PATH="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$PATH"
-          # Accept licenses (requires sdkmanager to be on PATH)
           yes | sdkmanager --licenses
-          # Install required SDK packages
-          sdkmanager "platform-tools" "platforms;android-30" "build-tools;30.0.3"
+          sdkmanager "platform-tools" "platforms;android-30" "build-tools;30.0.3" "ndk;25.1.8937393"
+      # --- REPLACED STEP END ---
 
       - name: Pre-download freetype
         run: |
@@ -75,10 +72,14 @@ jobs:
         run: |
           python3 -m pip install --user --upgrade pip buildozer cython
 
+      # --- REPLACED BUILD STEP START ---
       - name: Build APK
         run: |
+          export ANDROID_HOME="$HOME/android-sdk"
+          export ANDROID_SDK_ROOT="$HOME/android-sdk"
           export PATH="$HOME/.local/bin:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH"
           buildozer android debug
+      # --- REPLACED BUILD STEP END ---
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
