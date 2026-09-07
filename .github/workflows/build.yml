@@ -17,9 +17,17 @@ jobs:
 
       - name: Install Android build-tools
         run: |
-          export ANDROID_HOME=/home/user/.buildozer/android/platform/android-sdk
-          export PATH=$ANDROID_HOME/tools/bin:$PATH
-          yes | sdkmanager "build-tools;30.0.3"
+          SDK_HOME=/home/user/.buildozer/android/platform/android-sdk
+          if [ -d "$SDK_HOME/tools/bin" ]; then
+            SDK_MANAGER="$SDK_HOME/tools/bin/sdkmanager"
+          elif [ -d "$SDK_HOME/cmdline-tools/latest/bin" ]; then
+            SDK_MANAGER="$SDK_HOME/cmdline-tools/latest/bin/sdkmanager"
+          else
+            echo "sdkmanager not found"
+            exit 1
+          fi
+          echo "Using sdkmanager at: $SDK_MANAGER"
+          yes | $SDK_MANAGER "build-tools;30.0.3"
 
       - name: Build APK
         run: |
