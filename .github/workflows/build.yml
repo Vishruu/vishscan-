@@ -8,9 +8,6 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    env:
-      ANDROID_SDK_ROOT: /home/runner/.buildozer/android/sdk
-      ANDROID_HOME: /home/runner/.buildozer/android/platform/android-sdk
 
     steps:
       - name: Checkout code
@@ -36,7 +33,6 @@ jobs:
         with:
           path: |
             ~/.buildozer
-            /home/runner/.buildozer/android/sdk
           key: ${{ runner.os }}-buildozer-${{ github.ref }}
           restore-keys: |
             ${{ runner.os }}-buildozer-
@@ -48,17 +44,17 @@ jobs:
 
       - name: Install Android SDK and accept licenses
         run: |
-          ANDROID_SDK_ROOT="$HOME/android-sdk"
-          mkdir -p "$ANDROID_SDK_ROOT"
-          cd "$ANDROID_SDK_ROOT"
-          wget -q https://dl.google.com/android/repository/commandlinetools-linux-11217075_latest.zip -O cmdline_tools.zip
-          unzip -q cmdline_tools.zip
-          mkdir -p cmdline-tools
-          mv cmdline-tools latest
-          mv latest cmdline-tools/
-          export PATH="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$PATH"
-          yes | sdkmanager --licenses
-          sdkmanager "platform-tools" "platforms;android-30" "build-tools;30.0.3" "ndk;25.1.8937393"
+          cd ~
+          mkdir -p .buildozer/android/platform/android-sdk
+          cd .buildozer/android/platform/android-sdk
+          wget -q https://dl.google.com/android/repository/commandlinetools-linux-11217075_latest.zip
+          unzip -q commandlinetools-linux-11217075_latest.zip
+          mkdir -p tools
+          cp -r cmdline-tools/* tools/
+          export ANDROID_HOME=~/.buildozer/android/platform/android-sdk
+          export PATH=$ANDROID_HOME/tools/bin:$PATH
+          yes | $ANDROID_HOME/tools/bin/sdkmanager --licenses --sdk_root=$ANDROID_HOME
+          $ANDROID_HOME/tools/bin/sdkmanager --sdk_root=$ANDROID_HOME "platform-tools" "platforms;android-30" "build-tools;30.0.3"
 
       - name: Pre-download freetype
         run: |
@@ -69,13 +65,13 @@ jobs:
 
       - name: Install Python dependencies
         run: |
-          python3 -m pip install --user --upgrade pip buildozer cython
+          pip install --user --upgrade pip buildozer cython
 
       - name: Build APK
         run: |
-          export ANDROID_HOME="$HOME/android-sdk"
-          export ANDROID_SDK_ROOT="$HOME/android-sdk"
-          export PATH="$HOME/.local/bin:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH"
+          export ANDROID_HOME=~/.buildozer/android/platform/android-sdk
+          export PATH=$ANDROID_HOME/tools/bin:$PATH
+          export PATH="$HOME/.local/bin:$PATH"
           buildozer android debug
 
       - name: Upload APK
