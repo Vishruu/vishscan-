@@ -8,29 +8,43 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    container:
-      image: kivy/buildozer:latest
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install Android build-tools
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install system dependencies
         run: |
-          SDK_HOME=/home/user/.buildozer/android/platform/android-sdk
-          if [ -d "$SDK_HOME/tools/bin" ]; then
-            SDK_MANAGER="$SDK_HOME/tools/bin/sdkmanager"
-          elif [ -d "$SDK_HOME/cmdline-tools/latest/bin" ]; then
-            SDK_MANAGER="$SDK_HOME/cmdline-tools/latest/bin/sdkmanager"
-          else
-            echo "sdkmanager not found"
-            exit 1
-          fi
-          echo "Using sdkmanager at: $SDK_MANAGER"
-          yes | $SDK_MANAGER "build-tools;30.0.3"
+          sudo apt update
+          sudo apt install -y git zip unzip openjdk-17-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev cmake libffi-dev libssl-dev
+
+      - name: Setup Android SDK
+        run: |
+          mkdir -p ~/.buildozer/android/platform/android-sdk
+          cd ~/.buildozer/android/platform/android-sdk
+          wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
+          unzip -q commandlinetools-linux-11076708_latest.zip
+          mkdir -p tools
+          cp -r cmdline-tools/* tools/
+          export ANDROID_HOME=~/.buildozer/android/platform/android-sdk
+          export PATH=$ANDROID_HOME/tools/bin:$PATH
+          yes | $ANDROID_HOME/tools/bin/sdkmanager --licenses --sdk_root=$ANDROID_HOME
+          $ANDROID_HOME/tools/bin/sdkmanager --sdk_root=$ANDROID_HOME "platform-tools" "platforms;android-30" "build-tools;30.0.3"
+
+      - name: Install Python dependencies
+        run: |
+          pip install --user --upgrade pip buildozer cython
 
       - name: Build APK
         run: |
+          export ANDROID_HOME=~/.buildozer/android/platform/android-sdk
+          export PATH=$ANDROID_HOME/tools/bin:$PATH
+          export PATH="$HOME/.local/bin:$PATH"
           buildozer android debug
 
       - name: Upload APK
