@@ -23,7 +23,7 @@ jobs:
           sudo apt update
           sudo apt install -y git zip unzip openjdk-17-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev cmake libffi-dev libssl-dev
 
-      - name: Install Android SDK
+      - name: Install Android SDK and accept licenses
         run: |
           mkdir -p ~/.buildozer/android/platform/android-sdk
           cd ~/.buildozer/android/platform/android-sdk
@@ -33,13 +33,15 @@ jobs:
           cp -r cmdline-tools/* tools/
           export ANDROID_HOME=~/.buildozer/android/platform/android-sdk
           export PATH=$ANDROID_HOME/tools/bin:$PATH
-          yes | $ANDROID_HOME/tools/bin/sdkmanager --licenses --sdk_root=$ANDROID_HOME
+          # Accept all licenses automatically
+          yes | $ANDROID_HOME/tools/bin/sdkmanager --licenses
+          # Install required SDK packages
           $ANDROID_HOME/tools/bin/sdkmanager --sdk_root=$ANDROID_HOME "platform-tools" "platforms;android-30" "build-tools;30.0.3"
 
       - name: Pre-download freetype
         run: |
           mkdir -p ~/.buildozer/android/platform/build-arm64-v8a_armeabi-v7a/packages
-          cd ~/.buildozer/android/platform/build-arm64-v8a_armeabi-v7a/packages
+          cd ~/.buildozer/android/platform/build-arm64-v8a/packages
           mkdir -p freetype
           cd freetype
           wget -q https://github.com/freetype/freetype/releases/download/ver-2-14-1/freetype-2.14.1.tar.gz
@@ -50,9 +52,8 @@ jobs:
           pip install --user --upgrade pip buildozer cython
 
       - name: Build APK
-        env:
-          ANDROID_HOME: ~/.buildozer/android/platform/android-sdk
         run: |
+          export ANDROID_HOME=~/.buildozer/android/platform/android-sdk
           export PATH=$ANDROID_HOME/tools/bin:$PATH
           export PATH="$HOME/.local/bin:$PATH"
           buildozer android debug
