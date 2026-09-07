@@ -8,6 +8,9 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      ANDROID_HOME: /home/runner/.buildozer/android/platform/android-sdk
+      ANDROID_SDK_ROOT: /home/runner/.buildozer/android/platform/android-sdk
 
     steps:
       - name: Checkout code
@@ -18,6 +21,15 @@ jobs:
         with:
           python-version: '3.10'
 
+      - name: Cache Buildozer directories
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.buildozer
+          key: ${{ runner.os }}-buildozer-${{ hashFiles('buildozer.spec') }}
+          restore-keys: |
+            ${{ runner.os }}-buildozer-
+
       - name: Install system dependencies
         run: |
           sudo apt update
@@ -25,39 +37,44 @@ jobs:
 
       - name: Install Android SDK
         run: |
-          mkdir -p ~/.buildozer/android/platform/android-sdk
-          cd ~/.buildozer/android/platform/android-sdk
-          wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
-          unzip -q commandlinetools-linux-11076708_latest.zip
-          mkdir -p tools
-          cp -r cmdline-tools/* tools/
-          export ANDROID_HOME=~/.buildozer/android/platform/android-sdk
-          export PATH=$ANDROID_HOME/tools/bin:$PATH
-          yes | $ANDROID_HOME/tools/bin/sdkmanager --licenses --sdk_root=$ANDROID_HOME
-          $ANDROID_HOME/tools/bin/sdkmanager --sdk_root=$ANDROID_HOME "platform-tools" "platforms;android-30" "build-tools;30.0.3"
+          mkdir -p $ANDROID_HOME/cmdline-tools
+          # Skip download if the SDK tools are already cached
+          if [ ! -d "$ANDROID_HOME/cmdline-tools/latest" ]; then
+            cd $ANDROID_HOME/cmdline-tools
+            wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
+            unzip -q commandlinetools-linux-11076708_latest.zip
+            mv cmdline-tools latest
+          fi
+          
+          export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$PATH
+          yes | sdkmanager --licenses --sdk_root=$ANDROID_HOME
+          sdkmanager --sdk_root=$ANDROID_HOME "platform-tools" "platforms;android-30" "build-tools;30.0.3"
 
       - name: Install Python dependencies
         run: |
           pip install --user --upgrade pip buildozer cython
 
-      - name: Pre-download freetype 2.14.1 (project .buildozer)
+      - name: Build APK (with robust retry logic)
         run: |
-          mkdir -p .buildozer/android/platform/build-arm64-v8a_armeabi-v7a/packages/freetype
-          cd .buildozer/android/platform/build-arm64-v8a_armeabi-v7a/packages/freetype
-          curl -L -o freetype-2.14.1.tar.gz \
-            https://github.com/freetype/freetype/releases/download/ver-2-14-1/freetype-2.14.1.tar.gz
-          touch .mark-freetype-2.14.1.tar.gz
-
-      - name: Debug - verify pre-downloaded freetype
-        run: |
-          ls -la .buildozer/android/platform/build-arm64-v8a_armeabi-v7a/packages/freetype/ || echo "Folder not found"
-
-      - name: Build APK
-        run: |
-          export ANDROID_HOME=~/.buildozer/android/platform/android-sdk
-          export PATH=$ANDROID_HOME/tools/bin:$PATH
+          export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$PATH
           export PATH="$HOME/.local/bin:$PATH"
-          buildozer android debug
+          
+          # Unset preinstalled runner variables that conflict with python-for-android
+          unset ANDROID_NDK
+          unset ANDROID_NDK_HOME
+
+          # Retry up to 5 times for gateway timeouts/network drops
+          for i in 1 2 3 4 5; do
+            echo "Attempt $i of 5..."
+            if buildozer android debug; then
+              echo "Build succeeded!"
+              exit 0
+            fi
+            echo "Attempt $i failed due to network/timeout error. Waiting 15 seconds..."
+            sleep 15
+          done
+          echo "All build attempts failed."
+          exit 1
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
