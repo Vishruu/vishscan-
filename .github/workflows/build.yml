@@ -45,7 +45,6 @@ jobs:
             mv cmdline-tools latest
           fi
           
-          # Create a symlink for python-for-android which expects tools/bin/sdkmanager
           cd $ANDROID_HOME
           if [ ! -e "tools" ]; then
             ln -s cmdline-tools/latest tools
@@ -59,27 +58,27 @@ jobs:
         run: |
           pip install --user --upgrade pip buildozer cython
 
-      - name: Build APK (with robust retry logic)
+      - name: Pre-download Freetype to Cache (Bypass Savannah Server Issues)
+        run: |
+          mkdir -p ~/.buildozer/cache
+          # Download freetype-2.14.1 directly from a reliable mirror source into the cache directory
+          wget -O ~/.buildozer/cache/freetype-2.14.1.tar.gz https://download.savannah.gnu.org/releases/freetype/freetype-2.14.1.tar.gz || \
+          wget -O ~/.buildozer/cache/freetype-2.14.1.tar.gz https://sourceforge.net/projects/freetype/files/freetype2/2.14.1/freetype-2.14.1.tar.gz || true
+          
+          # If both fail due to network drops, grab it from an alternative archival mirror
+          if [ ! -f ~/.buildozer/cache/freetype-2.14.1.tar.gz ]; then
+            curl -L -o ~/.buildozer/cache/freetype-2.14.1.tar.gz https://www.freedesktop.org/software/fontconfig/digro/freetype-2.14.1.tar.gz
+          }
+
+      - name: Build APK
         run: |
           export PATH=$ANDROID_HOME/tools/bin:$PATH
           export PATH="$HOME/.local/bin:$PATH"
           
-          # Unset preinstalled runner variables that conflict with python-for-android
           unset ANDROID_NDK
           unset ANDROID_NDK_HOME
 
-          # Retry up to 5 times for gateway timeouts/network drops
-          for i in 1 2 3 4 5; do
-            echo "Attempt $i of 5..."
-            if buildozer android debug; then
-              echo "Build succeeded!"
-              exit 0
-            fi
-            echo "Attempt $i failed due to network/timeout error. Waiting 15 seconds..."
-            sleep 15
-          done
-          echo "All build attempts failed."
-          exit 1
+          buildozer android debug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
