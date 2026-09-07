@@ -40,18 +40,19 @@ jobs:
         run: |
           pip install --user --upgrade pip buildozer cython
 
-      - name: Build APK (with freetype retry)
+      - name: Pre-download freetype from GitHub
+        run: |
+          mkdir -p ~/.buildozer/android/platform/build-arm64-v8a_armeabi-v7a/packages/freetype
+          cd ~/.buildozer/android/platform/build-arm64-v8a_armeabi-v7a/packages/freetype
+          wget -q https://github.com/freetype/freetype/releases/download/ver-2-14-1/freetype-2.14.1.tar.gz
+          touch .mark-freetype-2.14.1.tar.gz
+
+      - name: Build APK
         run: |
           export ANDROID_HOME=~/.buildozer/android/platform/android-sdk
           export PATH=$ANDROID_HOME/tools/bin:$PATH
           export PATH="$HOME/.local/bin:$PATH"
-          # Try up to 3 times if freetype fails
-          for i in 1 2 3; do
-            echo "Attempt $i..."
-            buildozer android debug && break
-            echo "Attempt $i failed. Waiting 10 seconds..."
-            sleep 10
-          done
+          buildozer android debug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
