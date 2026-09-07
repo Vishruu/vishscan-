@@ -42,8 +42,8 @@ jobs:
 
       - name: Pre-download freetype from GitHub
         run: |
-          mkdir -p ~/.buildozer/android/platform/build-arm64-v8a_armeabi-v7a/packages/freetype
-          cd ~/.buildozer/android/platform/build-arm64-v8a_armeabi-v7a/packages/freetype
+          python3 -c "import os; os.makedirs('$HOME/.buildozer/android/platform/build-arm64-v8a_armeabi-v7a/packages/freetype', exist_ok=True)"
+          cd $HOME/.buildozer/android/platform/build-arm64-v8a_armeabi-v7a/packages/freetype
           wget -q https://github.com/freetype/freetype/releases/download/ver-2-14-1/freetype-2.14.1.tar.gz
           touch .mark-freetype-2.14.1.tar.gz
 
