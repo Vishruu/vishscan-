@@ -60,7 +60,14 @@ jobs:
 
       - name: Build APK
         run: |
-          export PATH=$ANDROID_HOME/tools/bin:$PATH
+          export PATH=$ANDROID_HOME/tools/bin:$ANDROID_HOME/platform-tools:$PATH
+          # Ensure build-tools (including aidl) are explicitly linked where buildozer can detect them
+          BUILD_TOOLS_DIR=$(ls -d $ANDROID_HOME/build-tools/* | head -n 1)
+          if [ -n "$BUILD_TOOLS_DIR" ]; then
+            export PATH=$BUILD_TOOLS_DIR:$PATH
+            echo "Added $BUILD_TOOLS_DIR to PATH"
+          fi
+
           export PATH="$HOME/.local/bin:$PATH"
           
           unset ANDROID_NDK
