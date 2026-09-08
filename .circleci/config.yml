@@ -13,8 +13,8 @@ jobs:
 
       - restore_cache:
           keys:
-            - v42-buildozer-cache-{{ checksum "buildozer.spec" }}
-            - v42-buildozer-cache-
+            - v43-buildozer-cache-{{ checksum "buildozer.spec" }}
+            - v43-buildozer-cache-
 
       - run:
           name: Install System Dependencies
@@ -76,7 +76,6 @@ jobs:
                         if tgt != lp:
                             shutil.copy(lp, tgt)
                         return tgt, None
-                    # Try downloading from alternative mirror if primary fails
                     alt_url = f\"https://download.savannah.gnu.org/releases/freetype/{bn}\"
                     if url != alt_url:
                         try:
@@ -109,6 +108,18 @@ jobs:
             curl -L -o ~/.buildozer/downloads/libffi-3.4.4.tar.gz "https://github.com/libffi/libffi/releases/download/v3.4.4/libffi-3.4.4.tar.gz" || true
 
       - run:
+          name: Verify and Prepare main.py Entry Point
+          command: |
+            if [ ! -f "main.py" ]; then
+              echo "main.py not found in root. Searching for alternatives..."
+              find . -maxdepth 2 -name "*.py"
+              # If you have another python file acting as entry point, copy it to main.py
+              # e.g., if it's app.py: cp app.py main.py
+            else
+              echo "main.py found."
+            fi
+
+      - run:
           name: Build APK
           command: |
             export PATH=$ANDROID_HOME/tools/bin:$ANDROID_HOME/platform-tools:$PATH
@@ -132,7 +143,7 @@ jobs:
             buildozer -v android debug
 
       - save_cache:
-            key: v42-buildozer-cache-{{ checksum "buildozer.spec" }}
+            key: v43-buildozer-cache-{{ checksum "buildozer.spec" }}
             paths:
               - ~/.buildozer
 
