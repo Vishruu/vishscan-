@@ -13,8 +13,8 @@ jobs:
 
       - restore_cache:
           keys:
-            - v4-buildozer-cache-{{ checksum "buildozer.spec" }}
-            - v4-buildozer-cache-
+            - v5-buildozer-cache-{{ checksum "buildozer.spec" }}
+            - v5-buildozer-cache-
 
       - run:
           name: Install System Dependencies
@@ -55,16 +55,13 @@ jobs:
       - run:
           name: Pre-download Freetype to Cache
           command: |
-            # Create buildozer download directory where p4a looks for cached tarballs
             mkdir -p /home/circleci/.buildozer/android/packages/dists/vishscan/.buildozer/downloads
             mkdir -p /home/circleci/project/.buildozer/android/packages/dists/vishscan/.buildozer/downloads
             
-            # Download freetype directly from SourceForge to bypass Savannah 502/504 errors
             FREETYPE_URL="https://sourceforge.net/projects/freetype/files/freetype2/2.13.0/freetype-2.13.0.tar.gz"
             echo "Downloading Freetype from SourceForge mirror..."
             curl -L -o /home/circleci/.buildozer/android/packages/freetype-2.13.0.tar.gz "$FREETYPE_URL" || true
             
-            # Also drop a copy in the project buildozer folder if it exists
             mkdir -p ~/.buildozer/downloads
             cp /home/circleci/.buildozer/android/packages/freetype-2.13.0.tar.gz ~/.buildozer/downloads/ || true
 
@@ -80,7 +77,10 @@ jobs:
 
             export PATH="$HOME/.local/bin:$PATH"
             
-            # Force single architecture
+            # Completely wipe old build artifacts that lock in multi-arch specs
+            rm -rf .buildozer/android/platform/build-*
+            
+            # Force single architecture in spec
             sed -i 's/^#* *android.archs.*/android.archs = arm64-v8a/g' buildozer.spec
 
             # Unset conflicting NDK env vars
@@ -90,7 +90,7 @@ jobs:
             buildozer android debug
 
       - save_cache:
-          key: v4-buildozer-cache-{{ checksum "buildozer.spec" }}
+          key: v5-buildozer-cache-{{ checksum "buildozer.spec" }}
           paths:
             - ~/.buildozer
 
