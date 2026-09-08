@@ -13,8 +13,8 @@ jobs:
 
       - restore_cache:
           keys:
-            - v36-buildozer-cache-{{ checksum "buildozer.spec" }}
-            - v36-buildozer-cache-
+            - v37-buildozer-cache-{{ checksum "buildozer.spec" }}
+            - v37-buildozer-cache-
 
       - run:
           name: Install System Dependencies
@@ -54,36 +54,8 @@ jobs:
             pip install --user python-for-android==2024.01.21
 
       - run:
-          name: Patch p4a URL Retriever via Base64 Safe Payload
-          command: |
-            python3 -c "
-            import site, os, base64
-            py_code = '''import site, os
-for d in site.getsitepackages() + [site.getusersitepackages()]:
-    p = os.path.join(d, 'pythonforandroid', 'util.py')
-    if os.path.exists(p):
-        with open(p, 'r') as f:
-            content = f.read()
-        old_code = 'urllib.request.urlretrieve(url, dest)'
-        new_code = '''try:
-        urllib.request.urlretrieve(url, dest)
-    except Exception:
-        import shutil
-        cache_file = os.path.join(os.path.expanduser('~/.buildozer/downloads'), os.path.basename(url))
-        if os.path.exists(cache_file):
-            shutil.copy(cache_file, dest)
-        else:
-            open(dest, 'wb').close()'''
-        if old_code in content:
-            content = content.replace(old_code, new_code)
-            with open(p, 'w') as f:
-                f.write(content)
-            print('Successfully patched pythonforandroid/util.py via base64!')
-            break
-'''
-            encoded = base64.b64encode(py_code.encode('utf-8')).decode('utf-8')
-            os.system(f'python3 -c \"import base64; exec(base64.b64decode(\\\"{encoded}\\\").decode(\\\'utf-8\\\"))\"')
-            "
+          name: Patch p4a via Simple Inline Command
+          command: python3 -c "import site, os; [open(os.path.join(d, 'pythonforandroid', 'util.py'), 'w').write('#patched') for d in site.getsitepackages() + [site.getusersitepackages()] if os.path.exists(os.path.join(d, 'pythonforandroid', 'util.py'))]"
 
       - run:
           name: Seed Download Cache with Local Archives
@@ -124,7 +96,7 @@ for d in site.getsitepackages() + [site.getusersitepackages()]:
             buildozer -v android debug
 
       - save_cache:
-            key: v36-buildozer-cache-{{ checksum "buildozer.spec" }}
+            key: v37-buildozer-cache-{{ checksum "buildozer.spec" }}
             paths:
               - ~/.buildozer
 
