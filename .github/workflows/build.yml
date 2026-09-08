@@ -51,7 +51,7 @@ jobs:
           fi
 
           export PATH=$ANDROID_HOME/tools/bin:$PATH
-          yes | sdkmanager --licenses --sdk_root=$ANDROID_HOME
+          key: ${{ runner.os }}-buildozer-v2-${{ hashFiles('buildozer.spec') }}
           sdkmanager --sdk_root=$ANDROID_HOME "platform-tools" "platforms;android-30" "build-tools;30.0.3"
 
       - name: Install Python dependencies
