@@ -44,23 +44,13 @@ jobs:
             echo "24333f8a63b6825ea9c5514f83c2829b004d1fee" > $ANDROID_HOME/licenses/android-sdk-license
             echo "84831b9409646a918e30573bab4c9c91346d8abd" >> $ANDROID_HOME/licenses/android-sdk-license
             
-            yes | sdkmanager --licenses --sdk_root=$ANDROID_HOME
+            yes | sdkmanager --licenses --sdk_root=$ANDROID_HOME || true
             sdkmanager --sdk_root=$ANDROID_HOME "platform-tools" "platforms;android-33" "build-tools;33.0.2"
 
       - run:
           name: Install Python Dependencies
           command: |
             pip install --user --upgrade pip buildozer cython
-
-      - run:
-          name: Pre-cache Freetype to bypass Savannah mirror
-          command: |
-            DOWNLOADS_DIR="$HOME/.buildozer/downloads"
-            mkdir -p "$DOWNLOADS_DIR"
-            # Download a stable release of freetype directly from a reliable mirror
-            FREETYPE_VERSION="2.13.0"
-            wget -c "https://download.savannah.gnu.org/releases/freetype/freetype-$FREETYPE_VERSION.tar.gz" -P "$DOWNLOADS_DIR" || \
-            wget -c "https://sourceforge.net/projects/freetype/files/freetype2/$FREETYPE_VERSION/freetype-$FREETYPE_VERSION.tar.gz" -P "$DOWNLOADS_DIR"
 
       - run:
           name: Patch Freetype Recipe URL
