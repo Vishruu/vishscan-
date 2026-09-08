@@ -13,8 +13,8 @@ jobs:
 
       - restore_cache:
           keys:
-            - v19-buildozer-cache-{{ checksum "buildozer.spec" }}
-            - v19-buildozer-cache-
+            - v20-buildozer-cache-{{ checksum "buildozer.spec" }}
+            - v20-buildozer-cache-
 
       - run:
           name: Install System Dependencies
@@ -54,7 +54,59 @@ jobs:
             pip install --user python-for-android==2024.01.21
 
       - run:
-          name: Seed and Override Download Cache to Stop External Fetches
+          name: Completely Monkeypatch p4a Download Function to Avoid External Gateway Drops
+          command: |
+            python3 -c "
+            import site, os
+            for site_dir in site.getsitepackages() + [site.getusersitepackages()]:
+                toolchain_path = os.path.join(site_dir, 'pythonforandroid', 'toolchain.py')
+                if os.path.exists(toolchain_path):
+                    with open(toolchain_path, 'r') as f:
+                        content = f.read()
+                    print('Found toolchain.py at:', toolchain_path)
+            "
+            
+            # Write a replacement/monkeypatch script that overrides pythonforandroid.util.download to look in cache first and bypass network errors
+            mkdir -p ~/.local/lib/python3.10/site-packages/pythonforandroid/
+            python3 -c "
+            import site, os
+            for site_dir in site.getsitepackages() + [site.getusersitepackages()]:
+                util_path = os.path.join(site_dir, 'pythonforandroid', 'util.py')
+                if os.path.exists(util_path):
+                    with open(util_path, 'r') as f:
+                        lines = f.readlines()
+                    
+                    new_lines = []
+                    skipping = False
+                    for line in lines:
+                        if 'def download(' in line:
+                            skipping = True
+                            new_lines.append(line)
+                            # Inject safe local-first download wrapper
+                            new_lines.append('    import os, urllib.request\n')
+                            new_lines.append('    filename = os.path.basename(url)\n')
+                            new_lines.append('    cache_dir = os.path.expanduser(\"~/.buildozer/downloads\")\n')
+                            new_lines.append('    local_file = os.path.join(cache_dir, filename)\n')
+                            new_lines.append('    if os.path.exists(local_file):\n')
+                            new_lines.append('        print(f\"[CACHED OFFLINE] Using local copy for {filename}\")\n')
+                            new_lines.append('        if dest is not None:\n')
+                            new_lines.append('            import shutil\n')
+                            new_lines.append('            shutil.copy(local_file, dest)\n')
+                            new_lines.append('            return dest\n')
+                            new_lines.append('        return local_file\n')
+                        elif skipping and line.startswith('    def '):
+                            skipping = False
+                        
+                        if not skipping:
+                            new_lines.append(line)
+                            
+                    with open(util_path, 'w') as f:
+                        f.writelines(new_lines)
+                    print('Successfully monkeypatched pythonforandroid/util.py for offline-first caching!')
+            "
+
+      - run:
+          name: Seed Download Cache with Complete Mirror Archives
           command: |
             mkdir -p ~/.buildozer/downloads
             
@@ -70,12 +122,8 @@ jobs:
             curl -L -o ~/.buildozer/downloads/freetype-2.13.0.tar.gz "https://sourceforge.net/projects/freetype/files/freetype2/2.13.0/freetype-2.13.0.tar.gz" || true
             curl -L -o ~/.buildozer/downloads/libffi-3.4.4.tar.gz "https://github.com/libffi/libffi/releases/download/v3.4.4/libffi-3.4.4.tar.gz" || true
 
-            # Create destination mirror structures so p4a looks locally first
-            mkdir -p /home/circleci/project/.buildozer/android/platform/build-arm64-v8a/dists/vishscan/.buildozer/downloads || true
-            cp -r ~/.buildozer/downloads/* /home/circleci/project/.buildozer/android/platform/build-arm64-v8a/dists/vishscan/.buildozer/downloads/ 2>/dev/null || true
-
       - run:
-          name: Build APK with Patched p4a Download Timeout/Retries
+          name: Build APK
           command: |
             export PATH=$ANDROID_HOME/tools/bin:$ANDROID_HOME/platform-tools:$PATH
             
@@ -101,18 +149,6 @@ jobs:
                 config.write(configfile)
             "
 
-            # Patch python-for-android's download utility to intercept broken URLs or force local file usage
-            python3 -c "
-            import site, os
-            for site_dir in site.getsitepackages() + [site.getusersitepackages()]:
-                utils_path = os.path.join(site_dir, 'pythonforandroid', 'util.py')
-                if os.path.exists(utils_path):
-                    with open(utils_path, 'r') as f:
-                        code = f.read()
-                    # Patch current download function to fallback to local cache instantly on 502/504
-                    print('Found p4a util.py at:', utils_path)
-            "
-
             # Unset conflicting NDK env vars
             unset ANDROID_NDK
             unset ANDROID_NDK_HOME
@@ -120,7 +156,7 @@ jobs:
             buildozer -v android debug
 
       - save_cache:
-            key: v19-buildozer-cache-{{ checksum "buildozer.spec" }}
+            key: v20-buildozer-cache-{{ checksum "buildozer.spec" }}
             paths:
               - ~/.buildozer
 
