@@ -53,15 +53,6 @@ jobs:
             pip install --user --upgrade pip buildozer cython
 
       - run:
-          name: Patch Freetype Recipe URL
-          command: |
-            P4A_RECIPES="/home/circleci/.buildozer/android/platform/python-for-android/pythonforandroid/recipes/freetype"
-            mkdir -p "$P4A_RECIPES"
-            if [ -f "$P4A_RECIPES/__init__.py" ]; then
-              sed -i 's|https://download.savannah.gnu.org/releases/freetype/|https://sourceforge.net/projects/freetype/files/freetype2/|g' "$P4A_RECIPES/__init__.py"
-            fi
-
-      - run:
           name: Build APK
           command: |
             export PATH=$ANDROID_HOME/tools/bin:$ANDROID_HOME/platform-tools:$PATH
@@ -73,12 +64,23 @@ jobs:
 
             export PATH="$HOME/.local/bin:$PATH"
             
-            # Force single architecture to avoid multi-arch toolchain race conditions
+            # Force single architecture
             sed -i 's/^#* *android.archs.*/android.archs = arm64-v8a/g' buildozer.spec
 
+            # Unset conflicting NDK env vars
             unset ANDROID_NDK
             unset ANDROID_NDK_HOME
 
+            # Run a quick buildozer command just to unpack python-for-android recipes, then patch them live if they appear
+            buildozer android update || true
+
+            # Patch Freetype recipe URL dynamically wherever it's unpacked
+            find ~/.buildozer -name "__init__.py" | grep "freetype" | while read file; do
+              sed -i 's|https://download.savannah.gnu.org/releases/freetype/|https://sourceforge.net/projects/freetype/files/freetype2/|g' "$file"
+              echo "Patched freetype URL in $file"
+            done
+
+            # Now run the actual build
             buildozer android debug
 
       - save_cache:
