@@ -13,8 +13,8 @@ jobs:
 
       - restore_cache:
           keys:
-            - v39-buildozer-cache-{{ checksum "buildozer.spec" }}
-            - v39-buildozer-cache-
+            - v40-buildozer-cache-{{ checksum "buildozer.spec" }}
+            - v40-buildozer-cache-
 
       - run:
           name: Install System Dependencies
@@ -54,40 +54,36 @@ jobs:
             pip install --user python-for-android==2024.01.21
 
       - run:
-          name: Setup Global Download Fallback Hook via Base64
+          name: Setup Global Download Fallback Hook via External Script
           command: |
-            python3 -c "
-            import base64
-            code = '''import site, os, shutil, urllib.request
-sp = site.getusersitepackages()
-os.makedirs(sp, exist_ok=True)
-hook_path = os.path.join(sp, 'sitecustomize.py')
-hook_code = '''import urllib.request, os, shutil
-orig = urllib.request.urlretrieve
-def safe_retrieve(url, filename=None, *a, **kw):
-    try:
-        return orig(url, filename, *a, **kw)
-    except Exception as e:
-        print(f'Fallback triggered for {url}: {e}')
-        bn = os.path.basename(url.split(\\\"?\\\")[0])
-        cd = os.path.expanduser(\\\"~/.buildozer/downloads\\\")
-        lp = os.path.join(cd, bn)
-        if os.path.exists(lp) and os.path.getsize(lp) > 0:
-            tgt = filename if filename else lp
-            if tgt != lp:
-                shutil.copy(lp, tgt)
-            return tgt, None
-        raise
-urllib.request.urlretrieve = safe_retrieve
-'''
-with open(hook_path, 'w') as f:
-    f.write(hook_code)
-print('Successfully created sitecustomize via script!')
-'''
-            encoded = base64.b64encode(code.encode('utf-8')).decode('utf-8')
-            import os
-            os.system(f'python3 -c \"import base64; exec(base64.b64decode(\\\"{encoded}\\\").decode(\\\'utf-8\\\"))\"')
-            "
+            cat << 'EOF' > setup_hook.py
+            import site, os
+            sp = site.getusersitepackages()
+            os.makedirs(sp, exist_ok=True)
+            hook_path = os.path.join(sp, 'sitecustomize.py')
+            hook_code = """import urllib.request, os, shutil
+            orig = urllib.request.urlretrieve
+            def safe_retrieve(url, filename=None, *a, **kw):
+                try:
+                    return orig(url, filename, *a, **kw)
+                except Exception as e:
+                    print(f"Fallback triggered for {url}: {e}")
+                    bn = os.path.basename(url.split("?")[0])
+                    cd = os.path.expanduser("~/.buildozer/downloads")
+                    lp = os.path.join(cd, bn)
+                    if os.path.exists(lp) and os.path.getsize(lp) > 0:
+                        tgt = filename if filename else lp
+                        if tgt != lp:
+                            shutil.copy(lp, tgt)
+                        return tgt, None
+                    raise
+            urllib.request.urlretrieve = safe_retrieve
+            """
+            with open(hook_path, 'w') as f:
+                f.write(hook_code)
+            print("Successfully created sitecustomize hook!")
+            EOF
+            python3 setup_hook.py
 
       - run:
           name: Seed Download Cache with Local Archives
@@ -95,7 +91,7 @@ print('Successfully created sitecustomize via script!')
             mkdir -p ~/.buildozer/downloads
             curl -L -o ~/.buildozer/downloads/Python-3.10.10.tgz "https://www.python.org/ftp/python/3.10.10/Python-3.10.10.tgz" || true
             curl -L -o ~/.buildozer/downloads/setuptools-67.5.1.tar.gz "https://files.pythonhosted.org/packages/source/s/setuptools/setuptools-67.5.1.tar.gz" || true
-            curl -L -0 ~/.buildozer/downloads/openssl-1.1.1u.tar.gz "https://www.openssl.org/source/openssl-1.1.1u.tar.gz" || true
+            curl -L -o ~/.buildozer/downloads/openssl-1.1.1u.tar.gz "https://www.openssl.org/source/openssl-1.1.1u.tar.gz" || true
             curl -L -o ~/.buildozer/downloads/sqlite-autoconf-3410200.tar.gz "https://www.sqlite.org/2023/sqlite-autoconf-3410200.tar.gz" || true
             curl -L -o ~/.buildozer/downloads/SDL2-2.26.5.tar.gz "https://github.com/libsdl-org/SDL/releases/download/release-2.26.5/SDL2-2.26.5.tar.gz" || true
             curl -L -o ~/.buildozer/downloads/SDL2_image-2.6.2.tar.gz "https://github.com/libsdl-org/SDL_image/releases/download/release-2.6.2/SDL2_image-2.6.2.tar.gz" || true
@@ -128,7 +124,7 @@ print('Successfully created sitecustomize via script!')
             buildozer -v android debug
 
       - save_cache:
-            key: v39-buildozer-cache-{{ checksum "buildozer.spec" }}
+            key: v40-buildozer-cache-{{ checksum "buildozer.spec" }}
             paths:
               - ~/.buildozer
 
