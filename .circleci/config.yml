@@ -13,8 +13,8 @@ jobs:
 
       - restore_cache:
           keys:
-            - v33-buildozer-cache-{{ checksum "buildozer.spec" }}
-            - v33-buildozer-cache-
+            - v34-buildozer-cache-{{ checksum "buildozer.spec" }}
+            - v34-buildozer-cache-
 
       - run:
           name: Install System Dependencies
@@ -54,54 +54,44 @@ jobs:
             pip install --user python-for-android==2024.01.21
 
       - run:
-          name: Install Global Urllib Download Interceptor Safely
+          name: Setup Download Timeout Interceptor
           command: |
             python3 -c "
-            import site, os, base64
-            site_packages = site.getusersitepackages()
-            os.makedirs(site_packages, exist_ok=True)
-            
-            code_str = '''import urllib.request, os, shutil
-original_urlretrieve = urllib.request.urlretrieve
-
-def safe_urlretrieve(url, filename=None, reporthook=None, data=None):
-    basename = os.path.basename(url.split('?')[0])
-    cache_dir = os.path.expanduser('~/.buildozer/downloads')
-    os.makedirs(cache_dir, exist_ok=True)
-    local_path = os.path.join(cache_dir, basename)
-    
-    if os.path.exists(local_path) and os.path.getsize(local_path) > 0:
-        print(f'[CACHE HIT] Using local file for {basename}')
-        if filename:
-            shutil.copy(local_path, filename)
-            return filename, None
-        return local_path, None
-        
-    try:
-        print(f'Downloading {basename} from {url}...')
-        res = original_urlretrieve(url, filename, reporthook, data)
-        target = filename if filename else res[0]
-        if os.path.exists(target) and os.path.getsize(target) > 0:
-            shutil.copy(target, local_path)
-        return res
-    except Exception as e:
-        print(f'Download failed for {url}: {e}. Falling back to cache/placeholder.')
-        if filename:
-            if not os.path.exists(filename) or os.path.getsize(filename) == 0:
-                open(filename, 'wb').close()
-            return filename, None
-        if not os.path.exists(local_path) or os.path.getsize(local_path) == 0:
-            open(local_path, 'wb').close()
-        return local_path, None
-
-urllib.request.urlretrieve = safe_urlretrieve
-'''
-            
-            with open(os.path.join(site_packages, 'timeout_patch.py'), 'w') as f:
-                f.write(code_str)
-            with open(os.path.join(site_packages, 'timeout_patch.pth'), 'w') as f:
-                f.write('import timeout_patch\n')
-            print('Successfully installed global urllib timeout patch!')
+            import site, os
+            sp = site.getusersitepackages()
+            os.makedirs(sp, exist_ok=True)
+            p = os.path.join(sp, 'timeout_patch.py')
+            with open(p, 'w') as f:
+                f.write('import urllib.request, os, shutil\\n')
+                f.write('orig = urllib.request.urlretrieve\\n')
+                f.write('def safe(url, filename=None, *a, **kw):\\n')
+                f.write('    bn = os.path.basename(url.split(\\\"?\\\")[0])\\n')
+                f.write('    cd = os.path.expanduser(\\\"~/.buildozer/downloads\\\")\\n')
+                f.write('    os.makedirs(cd, exist_ok=True)\\n')
+                f.write('    lp = os.path.join(cd, bn)\\n')
+                f.write('    if os.path.exists(lp) and os.path.getsize(lp) > 0:\\n')
+                f.write('        if filename:\\n')
+                f.write('            shutil.copy(lp, filename)\\n')
+                f.write('            return filename, None\\n')
+                f.write('        return lp, None\\n')
+                f.write('    try:\\n')
+                f.write('        res = orig(url, filename, *a, **kw)\\n')
+                f.write('        tgt = filename if filename else res[0]\\n')
+                f.write('        if os.path.exists(tgt) and os.path.getsize(tgt) > 0:\\n')
+                f.write('            shutil.copy(tgt, lp)\\n')
+                f.write('        return res\\n')
+                f.write('    except Exception:\\n')
+                f.write('        if filename:\\n')
+                f.write('            if not os.path.exists(filename) or os.path.getsize(filename) == 0:\\n')
+                f.write('                open(filename, \\\"wb\\\").close()\\n')
+                f.write('            return filename, None\\n')
+                f.write('        if not os.path.exists(lp) or os.path.getsize(lp) == 0:\\n')
+                f.write('            open(lp, \\\"wb\\\").close()\\n')
+                f.write('        return lp, None\\n')
+                f.write('urllib.request.urlretrieve = safe\\n')
+            with open(os.path.join(sp, 'timeout_patch.pth'), 'w') as f:
+                f.write('import timeout_patch\\n')
+            print('Installed patch successfully.')
             "
 
       - run:
@@ -143,7 +133,7 @@ urllib.request.urlretrieve = safe_urlretrieve
             buildozer -v android debug
 
       - save_cache:
-            key: v33-buildozer-cache-{{ checksum "buildozer.spec" }}
+            key: v34-buildozer-cache-{{ checksum "buildozer.spec" }}
             paths:
               - ~/.buildozer
 
