@@ -3,34 +3,82 @@ version: 2.1
 jobs:
   build:
     docker:
-      - image: cimg/android:2024.04-ndk
+      - image: cimg/python:3.10
     resource_class: large
+    environment:
+      ANDROID_HOME: /home/circleci/project/.buildozer/android/platform/android-sdk
+      ANDROID_SDK_ROOT: /home/circleci/project/.buildozer/android/platform/android-sdk
     steps:
       - checkout
-      
+
+      - restore_cache:
+          keys:
+            - v4-buildozer-cache-{{ checksum "buildozer.spec" }}
+            - v4-buildozer-cache-
+
       - run:
           name: Install System Dependencies
           command: |
-            sudo apt-get update
-            sudo apt-get install -y python3-pip python3-dev git zip unzip openjdk-17-jdk autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev cmake libffi-dev libssl-dev lldb
-            sudo pip3 install --upgrade pip buildozer cython
-
-      - restore_cache:
-          key: buildozer-android-sdk-v1
+            sudo apt update
+            sudo apt install -y openjdk-17-jdk git zip unzip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev cmake libffi-dev libssl-dev
 
       - run:
-          name: Run Buildozer
+          name: Install Android SDK & Build Tools
           command: |
-            buildozer -v android debug
+            mkdir -p $ANDROID_HOME/cmdline-tools
+            if [ ! -d "$ANDROID_HOME/cmdline-tools/latest" ]; then
+              cd $ANDROID_HOME/cmdline-tools
+              wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
+              unzip -q commandlinetools-linux-11076708_latest.zip
+              mv cmdline-tools latest
+            fi
+            
+            cd $ANDROID_HOME
+            if [ ! -e "tools" ]; then
+              ln -s cmdline-tools/latest tools
+            fi
+
+            export PATH=$ANDROID_HOME/tools/bin:$PATH
+            
+            mkdir -p $ANDROID_HOME/licenses
+            echo "24333f8a63b6825ea9c5514f83c2829b004d1fee" > $ANDROID_HOME/licenses/android-sdk-license
+            echo "84831b9409646a918e30573bab4c9c91346d8abd" >> $ANDROID_HOME/licenses/android-sdk-license
+            
+            yes | sdkmanager --licenses --sdk_root=$ANDROID_HOME
+            sdkmanager --sdk_root=$ANDROID_HOME "platform-tools" "platforms;android-33" "build-tools;33.0.2"
+
+      - run:
+          name: Install Python Dependencies
+          command: |
+            pip install --user --upgrade pip buildozer cython
+
+      - run:
+          name: Build APK
+          command: |
+            export PATH=$ANDROID_HOME/tools/bin:$ANDROID_HOME/platform-tools:$PATH
+            
+            BUILD_TOOLS_DIR=$(ls -d $ANDROID_HOME/build-tools/* | head -n 1)
+            if [ -n "$BUILD_TOOLS_DIR" ]; then
+              export PATH=$BUILD_TOOLS_DIR:$PATH
+              echo "Added $BUILD_TOOLS_DIR to PATH"
+            fi
+
+            export PATH="$HOME/.local/bin:$PATH"
+            
+            unset ANDROID_NDK
+            unset ANDROID_NDK_HOME
+
+            buildozer android debug
 
       - save_cache:
-          key: buildozer-android-sdk-v1
+          key: v4-buildozer-cache-{{ checksum "buildozer.spec" }}
           paths:
             - ~/.buildozer
+            - .buildozer
 
       - store_artifacts:
-          path: bin/
-          destination: apks
+            path: bin/
+            destination: apks
 
 workflows:
   version: 2
