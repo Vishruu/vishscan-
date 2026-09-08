@@ -13,8 +13,8 @@ jobs:
 
       - restore_cache:
           keys:
-            - v41-buildozer-cache-{{ checksum "buildozer.spec" }}
-            - v41-buildozer-cache-
+            - v42-buildozer-cache-{{ checksum "buildozer.spec" }}
+            - v42-buildozer-cache-
 
       - run:
           name: Install System Dependencies
@@ -76,12 +76,21 @@ jobs:
                         if tgt != lp:
                             shutil.copy(lp, tgt)
                         return tgt, None
+                    # Try downloading from alternative mirror if primary fails
+                    alt_url = f\"https://download.savannah.gnu.org/releases/freetype/{bn}\"
+                    if url != alt_url:
+                        try:
+                            print(f\"Trying mirror: {alt_url}\")
+                            tgt = filename if filename else lp
+                            return urllib.request.urlretrieve(alt_url, tgt, *a, **kw)
+                        except Exception as ex:
+                            print(f\"Mirror failed: {ex}\")
                     raise
             urllib.request.urlretrieve = safe_retrieve
             '''
             with open(hook_path, 'w') as f:
                 f.write(hook_code)
-            print('Successfully created sitecustomize hook!')
+            print('Successfully created robust sitecustomize hook!')
             "
 
       - run:
@@ -96,7 +105,7 @@ jobs:
             curl -L -o ~/.buildozer/downloads/SDL2_image-2.6.2.tar.gz "https://github.com/libsdl-org/SDL_image/releases/download/release-2.6.2/SDL2_image-2.6.2.tar.gz" || true
             curl -L -o ~/.buildozer/downloads/SDL2_ttf-2.20.1.tar.gz "https://github.com/libsdl-org/SDL_ttf/releases/download/release-2.20.1/SDL2_ttf-2.20.1.tar.gz" || true
             curl -L -o ~/.buildozer/downloads/SDL2_mixer-2.6.2.tar.gz "https://github.com/libsdl-org/SDL_mixer/releases/download/release-2.6.2/SDL2_mixer-2.6.2.tar.gz" || true
-            curl -L -o ~/.buildozer/downloads/freetype-2.13.0.tar.gz "https://sourceforge.net/projects/freetype/files/freetype2/2.13.0/freetype-2.13.0.tar.gz" || true
+            curl -L -o ~/.buildozer/downloads/freetype-2.14.1.tar.gz "https://sourceforge.net/projects/freetype/files/freetype2/2.14.1/freetype-2.14.1.tar.gz" || true
             curl -L -o ~/.buildozer/downloads/libffi-3.4.4.tar.gz "https://github.com/libffi/libffi/releases/download/v3.4.4/libffi-3.4.4.tar.gz" || true
 
       - run:
@@ -123,7 +132,7 @@ jobs:
             buildozer -v android debug
 
       - save_cache:
-            key: v41-buildozer-cache-{{ checksum "buildozer.spec" }}
+            key: v42-buildozer-cache-{{ checksum "buildozer.spec" }}
             paths:
               - ~/.buildozer
 
