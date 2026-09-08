@@ -13,8 +13,8 @@ jobs:
 
       - restore_cache:
           keys:
-            - v13-buildozer-cache-{{ checksum "buildozer.spec" }}
-            - v13-buildozer-cache-
+            - v14-buildozer-cache-{{ checksum "buildozer.spec" }}
+            - v14-buildozer-cache-
 
       - run:
           name: Install System Dependencies
@@ -77,21 +77,20 @@ jobs:
 
             export PATH="$HOME/.local/bin:$PATH"
             
-            # Wipe old build state and global caches completely
+            # Safe clean: wipe only project and platform build artifacts, leaving the SDK intact
             rm -rf .buildozer/
-            rm -rf ~/.buildozer/
+            rm -rf $ANDROID_HOME/platform/build-*
             
-            # Use Python's configparser to cleanly and accurately modify the INI spec file
+            # Enforce single architecture via configparser
             python3 -c "
             import configparser
             config = configparser.ConfigParser()
-            config.optionxform = str  # preserve case sensitivity
+            config.optionxform = str
             config.read('buildozer.spec')
             if 'app' in config:
                 config['app']['android.archs'] = 'arm64-v8a'
             with open('buildozer.spec', 'w') as configfile:
                 config.write(configfile)
-            print('Successfully updated buildozer.spec architecture via configparser.')
             "
 
             # Unset conflicting NDK env vars
@@ -101,7 +100,7 @@ jobs:
             buildozer -v android debug
 
       - save_cache:
-          key: v13-buildozer-cache-{{ checksum "buildozer.spec" }}
+          key: v14-buildozer-cache-{{ checksum "buildozer.spec" }}
           paths:
             - ~/.buildozer
 
