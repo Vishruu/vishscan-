@@ -53,6 +53,28 @@ jobs:
             pip install --user --upgrade pip buildozer cython
 
       - run:
+          name: Pre-emptively Patch Freetype Recipe
+          command: |
+            # Clone python-for-android locally or find its installation path to patch freetype ahead of time
+            P4A_DIR=$(python3 -c "import pythonforandroid; import os; print(os.path.dirname(pythonforandroid.__file__))")
+            FREETYPE_RECIPE="$P4A_DIR/recipes/freetype"
+            
+            mkdir -p "$FREETYPE_RECIPE"
+            
+            # Write a robust recipe override that points directly to SourceForge
+            cat << 'EOF' > "$FREETYPE_RECIPE/__init__.py"
+from pythonforandroid.recipe import Recipe
+
+class FreetypeRecipe(Recipe):
+    version = '2.13.0'
+    url = 'https://sourceforge.net/projects/freetype/files/freetype2/{version}/freetype-{version}.tar.gz'
+    patches = []
+
+recipe = FreetypeRecipe()
+EOF
+            echo "Successfully overrode Freetype recipe to use SourceForge."
+
+      - run:
           name: Build APK
           command: |
             export PATH=$ANDROID_HOME/tools/bin:$ANDROID_HOME/platform-tools:$PATH
@@ -71,16 +93,6 @@ jobs:
             unset ANDROID_NDK
             unset ANDROID_NDK_HOME
 
-            # Run a quick buildozer command just to unpack python-for-android recipes, then patch them live if they appear
-            buildozer android update || true
-
-            # Patch Freetype recipe URL dynamically wherever it's unpacked
-            find ~/.buildozer -name "__init__.py" | grep "freetype" | while read file; do
-              sed -i 's|https://download.savannah.gnu.org/releases/freetype/|https://sourceforge.net/projects/freetype/files/freetype2/|g' "$file"
-              echo "Patched freetype URL in $file"
-            done
-
-            # Now run the actual build
             buildozer android debug
 
       - save_cache:
