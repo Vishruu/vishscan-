@@ -13,8 +13,8 @@ jobs:
 
       - restore_cache:
           keys:
-            - v8-buildozer-cache-{{ checksum "buildozer.spec" }}
-            - v8-buildozer-cache-
+            - v9-buildozer-cache-{{ checksum "buildozer.spec" }}
+            - v9-buildozer-cache-
 
       - run:
           name: Install System Dependencies
@@ -45,6 +45,8 @@ jobs:
             echo "84831b9409646a918e30573bab4c9c91346d8abd" >> $ANDROID_HOME/licenses/android-sdk-license
             
             yes | sdkmanager --licenses --sdk_root=$ANDROID_HOME || true
+            
+            # Explicitly install build-tools and platform components so aidl is guaranteed to exist
             sdkmanager --sdk_root=$ANDROID_HOME "platform-tools" "platforms;android-33" "build-tools;33.0.2"
 
       - run:
@@ -77,11 +79,11 @@ jobs:
 
             export PATH="$HOME/.local/bin:$PATH"
             
-            # Deep clean every single build workspace directory
+            # Clear out bad build artifacts
             rm -rf .buildozer/
-            rm -rf ~/.buildozer/
+            rm -rf ~/.buildozer/android/platform/build-*
             
-            # Ensure buildozer.spec explicitly has a single architecture and no multi-arch trailing items
+            # Force single architecture explicitly
             sed -i 's/^android.archs.*/android.archs = arm64-v8a/g' buildozer.spec
 
             # Unset conflicting NDK env vars
@@ -91,7 +93,7 @@ jobs:
             buildozer -v android debug
 
       - save_cache:
-          key: v8-buildozer-cache-{{ checksum "buildozer.spec" }}
+          key: v9-buildozer-cache-{{ checksum "buildozer.spec" }}
           paths:
             - ~/.buildozer
 
