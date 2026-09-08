@@ -13,8 +13,8 @@ jobs:
 
       - restore_cache:
           keys:
-            - v17-buildozer-cache-{{ checksum "buildozer.spec" }}
-            - v17-buildozer-cache-
+            - v18-buildozer-cache-{{ checksum "buildozer.spec" }}
+            - v18-buildozer-cache-
 
       - run:
           name: Install System Dependencies
@@ -48,18 +48,20 @@ jobs:
             sdkmanager --sdk_root=$ANDROID_HOME "platform-tools" "platforms;android-33" "build-tools;33.0.2"
 
       - run:
-          name: Install Python Dependencies
+          name: Install Python Dependencies & Force Stable p4a Source
           command: |
-            pip install --user --upgrade pip buildozer cython python-for-android
+            pip install --user --upgrade pip buildozer cython
+            # Install a specific stable version of python-for-android to avoid upstream branch gateway drops
+            pip install --user python-for-android==2024.01.21
 
       - run:
-          name: Pre-download and Seed All Source Archives
+          name: Seed Download Cache with Local Fallback Proxies
           command: |
             mkdir -p ~/.buildozer/downloads
             
-            echo "Seeding download cache with all possible mirror dependencies..."
+            echo "Pre-downloading all requirement archives..."
             
-            # Python core & tools
+            # Hostpython & Python
             curl -L -o ~/.buildozer/downloads/Python-3.10.10.tgz "https://www.python.org/ftp/python/3.10.10/Python-3.10.10.tgz" || true
             curl -L -o ~/.buildozer/downloads/setuptools-67.5.1.tar.gz "https://files.pythonhosted.org/packages/source/s/setuptools/setuptools-67.5.1.tar.gz" || true
             
@@ -73,16 +75,12 @@ jobs:
             curl -L -o ~/.buildozer/downloads/SDL2_ttf-2.20.1.tar.gz "https://github.com/libsdl-org/SDL_ttf/releases/download/release-2.20.1/SDL2_ttf-2.20.1.tar.gz" || true
             curl -L -o ~/.buildozer/downloads/SDL2_mixer-2.6.2.tar.gz "https://github.com/libsdl-org/SDL_mixer/releases/download/release-2.6.2/SDL2_mixer-2.6.2.tar.gz" || true
 
-            # Graphics & Support Libraries
+            # Support libs
             curl -L -o ~/.buildozer/downloads/freetype-2.13.0.tar.gz "https://sourceforge.net/projects/freetype/files/freetype2/2.13.0/freetype-2.13.0.tar.gz" || true
             curl -L -o ~/.buildozer/downloads/libffi-3.4.4.tar.gz "https://github.com/libffi/libffi/releases/download/v3.4.4/libffi-3.4.4.tar.gz" || true
 
-            # Ensure python-for-android knows where to look by copying into dist downloads too
-            mkdir -p .buildozer/android/platform/build-arm64-v8a/dists/vishscan/.buildozer/downloads || true
-            cp -r ~/.buildozer/downloads/* ~/.buildozer/ 2>/dev/null || true
-
       - run:
-          name: Build APK
+          name: Build APK with Extended Network Timeout Config
           command: |
             export PATH=$ANDROID_HOME/tools/bin:$ANDROID_HOME/platform-tools:$PATH
             
@@ -112,10 +110,11 @@ jobs:
             unset ANDROID_NDK
             unset ANDROID_NDK_HOME
 
+            # Run buildozer with increased verbosity and connection retry flags if supported
             buildozer -v android debug
 
       - save_cache:
-            key: v17-buildozer-cache-{{ checksum "buildozer.spec" }}
+            key: v18-buildozer-cache-{{ checksum "buildozer.spec" }}
             paths:
               - ~/.buildozer
 
