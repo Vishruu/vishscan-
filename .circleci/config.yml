@@ -13,8 +13,8 @@ jobs:
 
       - restore_cache:
           keys:
-            - v16-buildozer-cache-{{ checksum "buildozer.spec" }}
-            - v16-buildozer-cache-
+            - v17-buildozer-cache-{{ checksum "buildozer.spec" }}
+            - v17-buildozer-cache-
 
       - run:
           name: Install System Dependencies
@@ -53,34 +53,33 @@ jobs:
             pip install --user --upgrade pip buildozer cython python-for-android
 
       - run:
-          name: Pre-download All Critical Recipe Dependencies to Cache
+          name: Pre-download and Seed All Source Archives
           command: |
             mkdir -p ~/.buildozer/downloads
             
-            echo "Pre-downloading core recipe source files to prevent gateway timeouts..."
+            echo "Seeding download cache with all possible mirror dependencies..."
             
-            # Python 3.10 source (commonly fetched by p4a python3 recipe)
+            # Python core & tools
             curl -L -o ~/.buildozer/downloads/Python-3.10.10.tgz "https://www.python.org/ftp/python/3.10.10/Python-3.10.10.tgz" || true
-            curl -L -o ~/.buildozer/downloads/Python-3.10.9.tgz "https://www.python.org/ftp/python/3.10.9/Python-3.10.9.tgz" || true
-
-            # OpenSSL
+            curl -L -o ~/.buildozer/downloads/setuptools-67.5.1.tar.gz "https://files.pythonhosted.org/packages/source/s/setuptools/setuptools-67.5.1.tar.gz" || true
+            
+            # OpenSSL & SQLite
             curl -L -o ~/.buildozer/downloads/openssl-1.1.1u.tar.gz "https://www.openssl.org/source/openssl-1.1.1u.tar.gz" || true
-            curl -L -o ~/.buildozer/downloads/openssl-1.1.1t.tar.gz "https://www.openssl.org/source/openssl-1.1.1t.tar.gz" || true
-
-            # SQLite3
             curl -L -o ~/.buildozer/downloads/sqlite-autoconf-3410200.tar.gz "https://www.sqlite.org/2023/sqlite-autoconf-3410200.tar.gz" || true
 
-            # SDL2 ecosystem
+            # SDL2 Ecosystem
             curl -L -o ~/.buildozer/downloads/SDL2-2.26.5.tar.gz "https://github.com/libsdl-org/SDL/releases/download/release-2.26.5/SDL2-2.26.5.tar.gz" || true
             curl -L -o ~/.buildozer/downloads/SDL2_image-2.6.2.tar.gz "https://github.com/libsdl-org/SDL_image/releases/download/release-2.6.2/SDL2_image-2.6.2.tar.gz" || true
             curl -L -o ~/.buildozer/downloads/SDL2_ttf-2.20.1.tar.gz "https://github.com/libsdl-org/SDL_ttf/releases/download/release-2.20.1/SDL2_ttf-2.20.1.tar.gz" || true
             curl -L -o ~/.buildozer/downloads/SDL2_mixer-2.6.2.tar.gz "https://github.com/libsdl-org/SDL_mixer/releases/download/release-2.6.2/SDL2_mixer-2.6.2.tar.gz" || true
 
-            # Freetype
+            # Graphics & Support Libraries
             curl -L -o ~/.buildozer/downloads/freetype-2.13.0.tar.gz "https://sourceforge.net/projects/freetype/files/freetype2/2.13.0/freetype-2.13.0.tar.gz" || true
-
-            # Libffi
             curl -L -o ~/.buildozer/downloads/libffi-3.4.4.tar.gz "https://github.com/libffi/libffi/releases/download/v3.4.4/libffi-3.4.4.tar.gz" || true
+
+            # Ensure python-for-android knows where to look by copying into dist downloads too
+            mkdir -p .buildozer/android/platform/build-arm64-v8a/dists/vishscan/.buildozer/downloads || true
+            cp -r ~/.buildozer/downloads/* ~/.buildozer/ 2>/dev/null || true
 
       - run:
           name: Build APK
@@ -116,7 +115,7 @@ jobs:
             buildozer -v android debug
 
       - save_cache:
-            key: v16-buildozer-cache-{{ checksum "buildozer.spec" }}
+            key: v17-buildozer-cache-{{ checksum "buildozer.spec" }}
             paths:
               - ~/.buildozer
 
