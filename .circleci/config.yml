@@ -13,8 +13,8 @@ jobs:
 
       - restore_cache:
           keys:
-            - v22-buildozer-cache-{{ checksum "buildozer.spec" }}
-            - v22-buildozer-cache-
+            - v23-buildozer-cache-{{ checksum "buildozer.spec" }}
+            - v23-buildozer-cache-
 
       - run:
           name: Install System Dependencies
@@ -56,71 +56,57 @@ jobs:
       - run:
           name: Override p4a Download Function Completely to Avoid Python.org Bad Gateway Errors
           command: |
-            python3 -c "
+            python3 -c '
             import site, os
             for site_dir in site.getsitepackages() + [site.getusersitepackages()]:
-                util_path = os.path.join(site_dir, 'pythonforandroid', 'util.py')
+                util_path = os.path.join(site_dir, "pythonforandroid", "util.py")
                 if os.path.exists(util_path):
-                    with open(util_path, 'r') as f:
+                    with open(util_path, "r") as f:
                         content = f.read()
-                    
-                    # Replace the entire download function with a robust version using alternative mirrors or local fallback
-                    target_def = 'def download('
+                    target_def = "def download("
                     if target_def in content:
                         parts = content.split(target_def)
-                        new_download_func = '''def download(url, dest=None):
+                        new_download_func = """def download(url, dest=None):
     import os, urllib.request, shutil
     filename = os.path.basename(url)
-    cache_dir = os.path.expanduser(\"~/.buildozer/downloads\")
+    cache_dir = os.path.expanduser("~/.buildozer/downloads")
     os.makedirs(cache_dir, exist_ok=True)
     local_file = os.path.join(cache_dir, filename)
-    
     if os.path.exists(local_file) and os.path.getsize(local_file) > 0:
-        print(f\"[OFFLINE CACHE HIT] Using cached file for {filename}\")
+        print(f"[OFFLINE CACHE HIT] Using cached file for {filename}")
         if dest is not None:
             shutil.copy(local_file, dest)
             return dest
         return local_file
-
-    # Fallback mirror list if python.org throws 502/504
     mirrors = [
         url,
-        f\"https://github.com/hrydgard/ppsspp-deps/raw/master/other/{filename}\",
-        f\"https://files.pythonhosted.org/packages/source/{filename[0]}/{filename.split('-')[0]}/{filename}\"
+        f"https://github.com/hrydgard/ppsspp-deps/raw/master/other/{filename}",
+        f"https://files.pythonhosted.org/packages/source/{filename[0]}/{filename.split("-")[0]}/{filename}"
     ]
-    
     for m in mirrors:
         try:
-            print(f\"Downloading {filename} from {m}...\")
+            print(f"Downloading {filename} from {m}...")
             urllib.request.urlretrieve(m, local_file)
             if os.path.exists(local_file) and os.path.getsize(local_file) > 0:
                 break
         except Exception as e:
-            print(f\"Failed to download from {m}: {e}\")
-            
+            print(f"Failed to download from {m}: {e}")
     if not os.path.exists(local_file) or os.path.getsize(local_file) == 0:
-        # Create empty or dummy tarball so build doesn't crash on missing file if recipe is optional
-        print(f\"Warning: Could not download {filename} from any mirror. Creating empty placeholder.\")
-        open(local_file, 'wb').close()
-
+        print(f"Warning: Could not download {filename}. Creating empty placeholder.")
+        open(local_file, "wb").close()
     if dest is not None:
         shutil.copy(local_file, dest)
         return dest
     return local_file
-'''
-                        # Find end of download function by looking for next function definition
+"""
                         rest = parts[1]
-                        next_func_idx = rest.find('\ndef ')
-                        if next_func_idx != -1:
-                            remaining_code = rest[next_func_idx:]
-                        else:
-                            remaining_code = ''
-                            
+                        next_func_idx = rest.find("\ndef ")
+                        remaining_code = rest[next_func_idx:] if next_func_idx != -1 else ""
                         new_content = parts[0] + target_def + new_download_func + remaining_code
-                        with open(util_path, 'w') as f:
+                        with open(util_path, "w") as f:
                             f.write(new_content)
-                        print('Successfully monkeypatched pythonforandroid/util.py download function!')
-            "
+                        print("Successfully monkeypatched pythonforandroid/util.py download function!")
+            '
 
       - run:
           name: Seed Download Cache with Local Archives
@@ -149,10 +135,8 @@ jobs:
 
             export PATH="$HOME/.local/bin:$PATH"
             
-            # Safe clean: wipe only project build artifacts
             rm -rf .buildozer/
             
-            # Enforce single architecture via configparser
             python3 -c "
             import configparser
             config = configparser.ConfigParser()
@@ -164,14 +148,13 @@ jobs:
                 config.write(configfile)
             "
 
-            # Unset conflicting NDK env vars
             unset ANDROID_NDK
             unset ANDROID_NDK_HOME
 
             buildozer -v android debug
 
       - save_cache:
-            key: v22-buildozer-cache-{{ checksum "buildozer.spec" }}
+            key: v23-buildozer-cache-{{ checksum "buildozer.spec" }}
             paths:
               - ~/.buildozer
 
