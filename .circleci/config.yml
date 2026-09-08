@@ -13,8 +13,8 @@ jobs:
 
       - restore_cache:
           keys:
-            - v27-buildozer-cache-{{ checksum "buildozer.spec" }}
-            - v27-buildozer-cache-
+            - v28-buildozer-cache-{{ checksum "buildozer.spec" }}
+            - v28-buildozer-cache-
 
       - run:
           name: Install System Dependencies
@@ -56,4 +56,4 @@ jobs:
       - run:
           name: Patch p4a Download Utility Safely via Base64
           command: |
-            echo "aW1wb3J0IHNpdGUsIG9zCmZvciBzaXRlX2RpciBpbiBzaXRlLmdldHNpdGVwYWNrYWdlcygpICsgW3NpdGUuZ2V0dXNlcnNpdGVwYWNrYWdlcygpXToKICAgIHV0aWxfcGF0aCA9IG9zLnBhdGguam9pbihzaXRlX2RpciwgInB5dGhvbmZvcmFuZHJvaWQiLCAidXRpbC5weSIpCiAgICBpZiBvcy5wYXRoLmV4aXN0cyh1dGlsX3BhdGgpOgogICAgICAgIHdpdGggb3Blbih1dGlsX3BhdGgsICJyIikgYXMgZjoKICAgICAgICAgICAgY29kZSA9
+            echo "bW1wb3J0IHNpdGUsIG9zCmZvciBzaXRlX2RpciBpbiBzaXRlLmdldHNpdGVwYWNrYWdlcygpICsgW3NpdGUuZ2V0dXNlcnNpdGVwYWNrYWdlcygpXToKICAgIHV0aWxfcGF0aCA9IG9zLnBhdGguam9pbihzaXRlX2RpciwgInB5dGhvbmZvcmFuZHJvaWQiLCAidXRpbC5weSIpCiAgICBpZiBvcy5wYXRoLmV4aXN0cyh1dGlsX3BhdGgpOgogICAgICAgIHdpdGggb3Blbih1dGlsX3BhdGgsICJyIikgYXMgZjoKICAgICAgICAgICAgY29kZSA9
