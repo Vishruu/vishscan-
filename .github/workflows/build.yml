@@ -58,17 +58,11 @@ jobs:
         run: |
           pip install --user --upgrade pip buildozer cython
 
-      - name: Pre-download Freetype to Cache (Bypass Savannah Server Issues)
+      - name: Pre-download Freetype to Cache
         run: |
           mkdir -p ~/.buildozer/cache
-          # Download freetype-2.14.1 directly from a reliable mirror source into the cache directory
-          wget -O ~/.buildozer/cache/freetype-2.14.1.tar.gz https://download.savannah.gnu.org/releases/freetype/freetype-2.14.1.tar.gz || \
-          wget -O ~/.buildozer/cache/freetype-2.14.1.tar.gz https://sourceforge.net/projects/freetype/files/freetype2/2.14.1/freetype-2.14.1.tar.gz || true
-          
-          # If both fail due to network drops, grab it from an alternative archival mirror
-          if [ ! -f ~/.buildozer/cache/freetype-2.14.1.tar.gz ]; then
-            curl -L -o ~/.buildozer/cache/freetype-2.14.1.tar.gz https://www.freedesktop.org/software/fontconfig/digro/freetype-2.14.1.tar.gz
-          fi
+          wget -c -O ~/.buildozer/cache/freetype-2.13.0.tar.gz https://nongnu.cachefly.net/releases/freetype/freetype-2.13.0.tar.gz || true
+          wget -c -O ~/.buildozer/cache/freetype-2.14.1.tar.gz https://nongnu.cachefly.net/releases/freetype/freetype-2.14.1.tar.gz || true
 
       - name: Build APK
         run: |
