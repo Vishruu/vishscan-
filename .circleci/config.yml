@@ -60,6 +60,7 @@ jobs:
 
       - run:
           name: Build APK
+          no_output_timeout: 90m
           command: |
             export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH
 
@@ -74,7 +75,13 @@ jobs:
             unset ANDROID_NDK
             unset ANDROID_NDK_HOME
 
-            buildozer android debug
+            for attempt in 1 2 3; do
+              echo "=== Build attempt $attempt/3 ==="
+              buildozer android debug && exit 0
+              echo "Attempt $attempt failed."
+              [ $attempt -lt 3 ] && echo "Waiting 60s before retry..." && sleep 60
+            done
+            exit 1
 
       - save_cache:
           key: v5-buildozer-cache-{{ checksum "buildozer.spec" }}
