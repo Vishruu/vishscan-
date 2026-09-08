@@ -13,8 +13,8 @@ jobs:
 
       - restore_cache:
           keys:
-            - v37-buildozer-cache-{{ checksum "buildozer.spec" }}
-            - v37-buildozer-cache-
+            - v38-buildozer-cache-{{ checksum "buildozer.spec" }}
+            - v38-buildozer-cache-
 
       - run:
           name: Install System Dependencies
@@ -54,8 +54,35 @@ jobs:
             pip install --user python-for-android==2024.01.21
 
       - run:
-          name: Patch p4a via Simple Inline Command
-          command: python3 -c "import site, os; [open(os.path.join(d, 'pythonforandroid', 'util.py'), 'w').write('#patched') for d in site.getsitepackages() + [site.getusersitepackages()] if os.path.exists(os.path.join(d, 'pythonforandroid', 'util.py'))]"
+          name: Setup Global Download Fallback Hook via sitecustomize
+          command: |
+            python3 -c "
+            import site, os
+            sp = site.getusersitepackages()
+            os.makedirs(sp, exist_ok=True)
+            hook_path = os.path.join(sp, 'sitecustomize.py')
+            code = '''import urllib.request, os, shutil
+orig = urllib.request.urlretrieve
+def safe_retrieve(url, filename=None, *a, **kw):
+    try:
+        return orig(url, filename, *a, **kw)
+    except Exception as e:
+        print(f'Fallback triggered for {url}: {e}')
+        bn = os.path.basename(url.split(\\\"?\\\")[0])
+        cd = os.path.expanduser(\\\"~/.buildozer/downloads\\\")
+        lp = os.path.join(cd, bn)
+        if os.path.exists(lp) and os.path.getsize(lp) > 0:
+            tgt = filename if filename else lp
+            if tgt != lp:
+                shutil.copy(lp, tgt)
+            return tgt, None
+        raise
+urllib.request.urlretrieve = safe_retrieve
+'''
+            with open(hook_path, 'w') as f:
+                f.write(code)
+            print('Successfully created global sitecustomize fallback hook!')
+            "
 
       - run:
           name: Seed Download Cache with Local Archives
@@ -96,7 +123,7 @@ jobs:
             buildozer -v android debug
 
       - save_cache:
-            key: v37-buildozer-cache-{{ checksum "buildozer.spec" }}
+            key: v38-buildozer-cache-{{ checksum "buildozer.spec" }}
             paths:
               - ~/.buildozer
 
