@@ -13,8 +13,8 @@ jobs:
 
       - restore_cache:
           keys:
-            - v14-buildozer-cache-{{ checksum "buildozer.spec" }}
-            - v14-buildozer-cache-
+            - v15-buildozer-cache-{{ checksum "buildozer.spec" }}
+            - v15-buildozer-cache-
 
       - run:
           name: Install System Dependencies
@@ -53,17 +53,24 @@ jobs:
             pip install --user --upgrade pip buildozer cython python-for-android
 
       - run:
-          name: Pre-download Freetype to Cache
+          name: Pre-download Dependencies to Bypass Mirror 502 Errors
           command: |
-            mkdir -p /home/circleci/.buildozer/android/packages/dists/vishscan/.buildozer/downloads
-            mkdir -p /home/circleci/project/.buildozer/android/packages/dists/vishscan/.buildozer/downloads
-            
-            FREETYPE_URL="https://sourceforge.net/projects/freetype/files/freetype2/2.13.0/freetype-2.13.0.tar.gz"
-            echo "Downloading Freetype from SourceForge mirror..."
-            curl -L -o /home/circleci/.buildozer/android/packages/freetype-2.13.0.tar.gz "$FREETYPE_URL" || true
-            
             mkdir -p ~/.buildozer/downloads
-            cp /home/circleci/.buildozer/android/packages/freetype-2.13.0.tar.gz ~/.buildozer/downloads/ || true
+            
+            echo "Pre-downloading SDL2, SDL2_image, SDL2_ttf, and Freetype..."
+            
+            # SDL2
+            curl -L -o ~/.buildozer/downloads/SDL2-2.26.5.tar.gz "https://github.com/libsdl-org/SDL/releases/download/release-2.26.5/SDL2-2.26.5.tar.gz" || true
+            curl -L -o ~/.buildozer/downloads/SDL2-2.26.3.tar.gz "https://github.com/libsdl-org/SDL/releases/download/release-2.26.3/SDL2-2.26.3.tar.gz" || true
+            
+            # SDL2_image
+            curl -L -o ~/.buildozer/downloads/SDL2_image-2.6.2.tar.gz "https://github.com/libsdl-org/SDL_image/releases/download/release-2.6.2/SDL2_image-2.6.2.tar.gz" || true
+            
+            # SDL2_ttf
+            curl -L -o ~/.buildozer/downloads/SDL2_ttf-2.20.1.tar.gz "https://github.com/libsdl-org/SDL_ttf/releases/download/release-2.20.1/SDL2_ttf-2.20.1.tar.gz" || true
+            
+            # Freetype
+            curl -L -o ~/.buildozer/downloads/freetype-2.13.0.tar.gz "https://sourceforge.net/projects/freetype/files/freetype2/2.13.0/freetype-2.13.0.tar.gz" || true
 
       - run:
           name: Build APK
@@ -77,9 +84,8 @@ jobs:
 
             export PATH="$HOME/.local/bin:$PATH"
             
-            # Safe clean: wipe only project and platform build artifacts, leaving the SDK intact
+            # Safe clean: wipe only project build artifacts
             rm -rf .buildozer/
-            rm -rf $ANDROID_HOME/platform/build-*
             
             # Enforce single architecture via configparser
             python3 -c "
@@ -100,7 +106,7 @@ jobs:
             buildozer -v android debug
 
       - save_cache:
-          key: v14-buildozer-cache-{{ checksum "buildozer.spec" }}
+          key: v15-buildozer-cache-{{ checksum "buildozer.spec" }}
           paths:
             - ~/.buildozer
 
