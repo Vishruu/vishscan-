@@ -66,10 +66,10 @@ jobs:
           command: |
             export PATH=$ANDROID_HOME/tools/bin:$ANDROID_HOME/platform-tools:$PATH
             
-            BUILD_TOOLS_DIR=$(ls -d $ANDROID_HOME/build-tools/* | head -n 1)
-            if [ -n "$BUILD_TOOLS_DIR" ]; then
-              export PATH=$BUILD_TOOLS_DIR:$PATH
-              echo "Added $BUILD_TOOLS_DIR to PATH"
+            # Explicitly force build-tools path export for aidl
+            if [ -d "$ANDROID_HOME/build-tools/33.0.2" ]; then
+              export PATH=$ANDROID_HOME/build-tools/33.0.2:$PATH
+              echo "Exported build-tools 33.0.2 to PATH"
             fi
 
             export PATH="$HOME/.local/bin:$PATH"
