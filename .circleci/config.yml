@@ -53,6 +53,15 @@ jobs:
             pip install --user --upgrade pip buildozer cython
 
       - run:
+          name: Patch Freetype Recipe URL
+          command: |
+            P4A_RECIPES="/home/circleci/project/.buildozer/android/platform/python-for-android/pythonforandroid/recipes/freetype"
+            mkdir -p "$P4A_RECIPES"
+            if [ -f "$P4A_RECIPES/__init__.py" ]; then
+              sed -i 's|https://download.savannah.gnu.org/releases/freetype/|https://sourceforge.net/projects/freetype/files/freetype2/|g' "$P4A_RECIPES/__init__.py"
+            fi
+
+      - run:
           name: Build APK
           command: |
             export PATH=$ANDROID_HOME/tools/bin:$ANDROID_HOME/platform-tools:$PATH
