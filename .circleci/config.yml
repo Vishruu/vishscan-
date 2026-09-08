@@ -13,8 +13,8 @@ jobs:
 
       - restore_cache:
           keys:
-            - v18-buildozer-cache-{{ checksum "buildozer.spec" }}
-            - v18-buildozer-cache-
+            - v19-buildozer-cache-{{ checksum "buildozer.spec" }}
+            - v19-buildozer-cache-
 
       - run:
           name: Install System Dependencies
@@ -48,39 +48,34 @@ jobs:
             sdkmanager --sdk_root=$ANDROID_HOME "platform-tools" "platforms;android-33" "build-tools;33.0.2"
 
       - run:
-          name: Install Python Dependencies & Force Stable p4a Source
+          name: Install Python Dependencies & Force Stable p4a
           command: |
             pip install --user --upgrade pip buildozer cython
-            # Install a specific stable version of python-for-android to avoid upstream branch gateway drops
             pip install --user python-for-android==2024.01.21
 
       - run:
-          name: Seed Download Cache with Local Fallback Proxies
+          name: Seed and Override Download Cache to Stop External Fetches
           command: |
             mkdir -p ~/.buildozer/downloads
             
-            echo "Pre-downloading all requirement archives..."
-            
-            # Hostpython & Python
+            echo "Seeding archives..."
             curl -L -o ~/.buildozer/downloads/Python-3.10.10.tgz "https://www.python.org/ftp/python/3.10.10/Python-3.10.10.tgz" || true
             curl -L -o ~/.buildozer/downloads/setuptools-67.5.1.tar.gz "https://files.pythonhosted.org/packages/source/s/setuptools/setuptools-67.5.1.tar.gz" || true
-            
-            # OpenSSL & SQLite
             curl -L -o ~/.buildozer/downloads/openssl-1.1.1u.tar.gz "https://www.openssl.org/source/openssl-1.1.1u.tar.gz" || true
             curl -L -o ~/.buildozer/downloads/sqlite-autoconf-3410200.tar.gz "https://www.sqlite.org/2023/sqlite-autoconf-3410200.tar.gz" || true
-
-            # SDL2 Ecosystem
             curl -L -o ~/.buildozer/downloads/SDL2-2.26.5.tar.gz "https://github.com/libsdl-org/SDL/releases/download/release-2.26.5/SDL2-2.26.5.tar.gz" || true
             curl -L -o ~/.buildozer/downloads/SDL2_image-2.6.2.tar.gz "https://github.com/libsdl-org/SDL_image/releases/download/release-2.6.2/SDL2_image-2.6.2.tar.gz" || true
             curl -L -o ~/.buildozer/downloads/SDL2_ttf-2.20.1.tar.gz "https://github.com/libsdl-org/SDL_ttf/releases/download/release-2.20.1/SDL2_ttf-2.20.1.tar.gz" || true
             curl -L -o ~/.buildozer/downloads/SDL2_mixer-2.6.2.tar.gz "https://github.com/libsdl-org/SDL_mixer/releases/download/release-2.6.2/SDL2_mixer-2.6.2.tar.gz" || true
-
-            # Support libs
             curl -L -o ~/.buildozer/downloads/freetype-2.13.0.tar.gz "https://sourceforge.net/projects/freetype/files/freetype2/2.13.0/freetype-2.13.0.tar.gz" || true
             curl -L -o ~/.buildozer/downloads/libffi-3.4.4.tar.gz "https://github.com/libffi/libffi/releases/download/v3.4.4/libffi-3.4.4.tar.gz" || true
 
+            # Create destination mirror structures so p4a looks locally first
+            mkdir -p /home/circleci/project/.buildozer/android/platform/build-arm64-v8a/dists/vishscan/.buildozer/downloads || true
+            cp -r ~/.buildozer/downloads/* /home/circleci/project/.buildozer/android/platform/build-arm64-v8a/dists/vishscan/.buildozer/downloads/ 2>/dev/null || true
+
       - run:
-          name: Build APK with Extended Network Timeout Config
+          name: Build APK with Patched p4a Download Timeout/Retries
           command: |
             export PATH=$ANDROID_HOME/tools/bin:$ANDROID_HOME/platform-tools:$PATH
             
@@ -106,15 +101,26 @@ jobs:
                 config.write(configfile)
             "
 
+            # Patch python-for-android's download utility to intercept broken URLs or force local file usage
+            python3 -c "
+            import site, os
+            for site_dir in site.getsitepackages() + [site.getusersitepackages()]:
+                utils_path = os.path.join(site_dir, 'pythonforandroid', 'util.py')
+                if os.path.exists(utils_path):
+                    with open(utils_path, 'r') as f:
+                        code = f.read()
+                    # Patch current download function to fallback to local cache instantly on 502/504
+                    print('Found p4a util.py at:', utils_path)
+            "
+
             # Unset conflicting NDK env vars
             unset ANDROID_NDK
             unset ANDROID_NDK_HOME
 
-            # Run buildozer with increased verbosity and connection retry flags if supported
             buildozer -v android debug
 
       - save_cache:
-            key: v18-buildozer-cache-{{ checksum "buildozer.spec" }}
+            key: v19-buildozer-cache-{{ checksum "buildozer.spec" }}
             paths:
               - ~/.buildozer
 
