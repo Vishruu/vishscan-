@@ -13,8 +13,8 @@ jobs:
 
       - restore_cache:
           keys:
-            - v15-buildozer-cache-{{ checksum "buildozer.spec" }}
-            - v15-buildozer-cache-
+            - v16-buildozer-cache-{{ checksum "buildozer.spec" }}
+            - v16-buildozer-cache-
 
       - run:
           name: Install System Dependencies
@@ -53,24 +53,34 @@ jobs:
             pip install --user --upgrade pip buildozer cython python-for-android
 
       - run:
-          name: Pre-download Dependencies to Bypass Mirror 502 Errors
+          name: Pre-download All Critical Recipe Dependencies to Cache
           command: |
             mkdir -p ~/.buildozer/downloads
             
-            echo "Pre-downloading SDL2, SDL2_image, SDL2_ttf, and Freetype..."
+            echo "Pre-downloading core recipe source files to prevent gateway timeouts..."
             
-            # SDL2
+            # Python 3.10 source (commonly fetched by p4a python3 recipe)
+            curl -L -o ~/.buildozer/downloads/Python-3.10.10.tgz "https://www.python.org/ftp/python/3.10.10/Python-3.10.10.tgz" || true
+            curl -L -o ~/.buildozer/downloads/Python-3.10.9.tgz "https://www.python.org/ftp/python/3.10.9/Python-3.10.9.tgz" || true
+
+            # OpenSSL
+            curl -L -o ~/.buildozer/downloads/openssl-1.1.1u.tar.gz "https://www.openssl.org/source/openssl-1.1.1u.tar.gz" || true
+            curl -L -o ~/.buildozer/downloads/openssl-1.1.1t.tar.gz "https://www.openssl.org/source/openssl-1.1.1t.tar.gz" || true
+
+            # SQLite3
+            curl -L -o ~/.buildozer/downloads/sqlite-autoconf-3410200.tar.gz "https://www.sqlite.org/2023/sqlite-autoconf-3410200.tar.gz" || true
+
+            # SDL2 ecosystem
             curl -L -o ~/.buildozer/downloads/SDL2-2.26.5.tar.gz "https://github.com/libsdl-org/SDL/releases/download/release-2.26.5/SDL2-2.26.5.tar.gz" || true
-            curl -L -o ~/.buildozer/downloads/SDL2-2.26.3.tar.gz "https://github.com/libsdl-org/SDL/releases/download/release-2.26.3/SDL2-2.26.3.tar.gz" || true
-            
-            # SDL2_image
             curl -L -o ~/.buildozer/downloads/SDL2_image-2.6.2.tar.gz "https://github.com/libsdl-org/SDL_image/releases/download/release-2.6.2/SDL2_image-2.6.2.tar.gz" || true
-            
-            # SDL2_ttf
             curl -L -o ~/.buildozer/downloads/SDL2_ttf-2.20.1.tar.gz "https://github.com/libsdl-org/SDL_ttf/releases/download/release-2.20.1/SDL2_ttf-2.20.1.tar.gz" || true
-            
+            curl -L -o ~/.buildozer/downloads/SDL2_mixer-2.6.2.tar.gz "https://github.com/libsdl-org/SDL_mixer/releases/download/release-2.6.2/SDL2_mixer-2.6.2.tar.gz" || true
+
             # Freetype
             curl -L -o ~/.buildozer/downloads/freetype-2.13.0.tar.gz "https://sourceforge.net/projects/freetype/files/freetype2/2.13.0/freetype-2.13.0.tar.gz" || true
+
+            # Libffi
+            curl -L -o ~/.buildozer/downloads/libffi-3.4.4.tar.gz "https://github.com/libffi/libffi/releases/download/v3.4.4/libffi-3.4.4.tar.gz" || true
 
       - run:
           name: Build APK
@@ -106,9 +116,9 @@ jobs:
             buildozer -v android debug
 
       - save_cache:
-          key: v15-buildozer-cache-{{ checksum "buildozer.spec" }}
-          paths:
-            - ~/.buildozer
+            key: v16-buildozer-cache-{{ checksum "buildozer.spec" }}
+            paths:
+              - ~/.buildozer
 
       - store_artifacts:
             path: bin/
