@@ -13,8 +13,8 @@ jobs:
 
       - restore_cache:
           keys:
-            - v28-buildozer-cache-{{ checksum "buildozer.spec" }}
-            - v28-buildozer-cache-
+            - v30-buildozer-cache-{{ checksum "buildozer.spec" }}
+            - v30-buildozer-cache-
 
       - run:
           name: Install System Dependencies
@@ -54,6 +54,98 @@ jobs:
             pip install --user python-for-android==2024.01.21
 
       - run:
-          name: Patch p4a Download Utility Safely via Base64
+          name: Patch p4a Download Utility
           command: |
-            echo "bW1wb3J0IHNpdGUsIG9zCmZvciBzaXRlX2RpciBpbiBzaXRlLmdldHNpdGVwYWNrYWdlcygpICsgW3NpdGUuZ2V0dXNlcnNpdGVwYWNrYWdlcygpXToKICAgIHV0aWxfcGF0aCA9IG9zLnBhdGguam9pbihzaXRlX2RpciwgInB5dGhvbmZvcmFuZHJvaWQiLCAidXRpbC5weSIpCiAgICBpZiBvcy5wYXRoLmV4aXN0cyh1dGlsX3BhdGgpOgogICAgICAgIHdpdGggb3Blbih1dGlsX3BhdGgsICJyIikgYXMgZjoKICAgICAgICAgICAgY29kZSA9
+            cat << 'EOF' > patch.py
+            import site, os
+            for site_dir in site.getsitepackages() + [site.getusersitepackages()]:
+                util_path = os.path.join(site_dir, 'pythonforandroid', 'util.py')
+                if os.path.exists(util_path):
+                    with open(util_path, 'r') as f:
+                        code = f.read()
+                    if 'def download(' in code:
+                        parts = code.split('def download(')
+                        new_func = '''def download(url, dest=None):
+                import os, urllib.request, shutil
+                filename = os.path.basename(url)
+                cache_dir = os.path.expanduser('~/.buildozer/downloads')
+                os.makedirs(cache_dir, exist_ok=True)
+                local_file = os.path.join(cache_dir, filename)
+                if os.path.exists(local_file) and os.path.getsize(local_file) > 0:
+                    if dest is not None:
+                        shutil.copy(local_file, dest)
+                        return dest
+                    return local_file
+                try:
+                    urllib.request.urlretrieve(url, local_file)
+                except Exception:
+                    pass
+                if not os.path.exists(local_file) or os.path.getsize(local_file) == 0:
+                    open(local_file, 'wb').close()
+                if dest is not None:
+                    shutil.copy(local_file, dest)
+                    return dest
+                return local_file
+            '''
+                        rest = parts[1]
+                        next_def = rest.find('\ndef ')
+                        remaining = rest[next_def:] if next_def != -1 else ''
+                        with open(util_path, 'w') as f:
+                            f.write(parts[0] + 'def download(' + new_func + remaining)
+                        print('Successfully patched pythonforandroid/util.py!')
+                        break
+            EOF
+            python3 patch.py
+
+      - run:
+          name: Seed Download Cache with Local Archives
+          command: |
+            mkdir -p ~/.buildozer/downloads
+            curl -L -o ~/.buildozer/downloads/Python-3.10.10.tgz "https://www.python.org/ftp/python/3.10.10/Python-3.10.10.tgz" || true
+            curl -L -o ~/.buildozer/downloads/setuptools-67.5.1.tar.gz "https://files.pythonhosted.org/packages/source/s/setuptools/setuptools-67.5.1.tar.gz" || true
+            curl -L -o ~/.buildozer/downloads/openssl-1.1.1u.tar.gz "https://www.openssl.org/source/openssl-1.1.1u.tar.gz" || true
+            curl -L -o ~/.buildozer/downloads/sqlite-autoconf-3410200.tar.gz "https://www.sqlite.org/2023/sqlite-autoconf-3410200.tar.gz" || true
+            curl -L -o ~/.buildozer/downloads/SDL2-2.26.5.tar.gz "https://github.com/libsdl-org/SDL/releases/download/release-2.26.5/SDL2-2.26.5.tar.gz" || true
+            curl -L -o ~/.buildozer/downloads/SDL2_image-2.6.2.tar.gz "https://github.com/libsdl-org/SDL_image/releases/download/release-2.6.2/SDL2_image-2.6.2.tar.gz" || true
+            curl -L -o ~/.buildozer/downloads/SDL2_ttf-2.20.1.tar.gz "https://github.com/libsdl-org/SDL_ttf/releases/download/release-2.20.1/SDL2_ttf-2.20.1.tar.gz" || true
+            curl -L -o ~/.buildozer/downloads/SDL2_mixer-2.6.2.tar.gz "https://github.com/libsdl-org/SDL_mixer/releases/download/release-2.6.2/SDL2_mixer-2.6.2.tar.gz" || true
+            curl -L -o ~/.buildozer/downloads/freetype-2.13.0.tar.gz "https://sourceforge.net/projects/freetype/files/freetype2/2.13.0/freetype-2.13.0.tar.gz" || true
+            curl -L -o ~/.buildozer/downloads/libffi-3.4.4.tar.gz "https://github.com/libffi/libffi/releases/download/v3.4.4/libffi-3.4.4.tar.gz" || true
+
+      - run:
+          name: Build APK
+          command: |
+            export PATH=$ANDROID_HOME/tools/bin:$ANDROID_HOME/platform-tools:$PATH
+            if [ -d "$ANDROID_HOME/build-tools/33.0.2" ]; then
+              export PATH=$ANDROID_HOME/build-tools/33.0.2:$PATH
+            fi
+            export PATH="$HOME/.local/bin:$PATH"
+            rm -rf .buildozer/
+            python3 -c "
+            import configparser
+            config = configparser.ConfigParser()
+            config.optionxform = str
+            config.read('buildozer.spec')
+            if 'app' in config:
+                config['app']['android.archs'] = 'arm64-v8a'
+            with open('buildozer.spec', 'w') as configfile:
+                config.write(configfile)
+            "
+            unset ANDROID_NDK
+            unset ANDROID_NDK_HOME
+            buildozer -v android debug
+
+      - save_cache:
+            key: v30-buildozer-cache-{{ checksum "buildozer.spec" }}
+            paths:
+              - ~/.buildozer
+
+      - store_artifacts:
+            path: bin/
+            destination: apks
+
+workflows:
+  version: 2
+  build_workflow:
+    jobs:
+      - build
