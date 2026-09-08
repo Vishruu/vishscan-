@@ -55,24 +55,16 @@ jobs:
       - run:
           name: Pre-emptively Patch Freetype Recipe
           command: |
-            # Clone python-for-android locally or find its installation path to patch freetype ahead of time
-            P4A_DIR=$(python3 -c "import pythonforandroid; import os; print(os.path.dirname(pythonforandroid.__file__))")
-            FREETYPE_RECIPE="$P4A_DIR/recipes/freetype"
-            
-            mkdir -p "$FREETYPE_RECIPE"
-            
-            # Write a robust recipe override that points directly to SourceForge
-            cat << 'EOF' > "$FREETYPE_RECIPE/__init__.py"
-from pythonforandroid.recipe import Recipe
-
-class FreetypeRecipe(Recipe):
-    version = '2.13.0'
-    url = 'https://sourceforge.net/projects/freetype/files/freetype2/{version}/freetype-{version}.tar.gz'
-    patches = []
-
-recipe = FreetypeRecipe()
-EOF
-            echo "Successfully overrode Freetype recipe to use SourceForge."
+            python3 -c '
+            import pythonforandroid, os
+            p4a_dir = os.path.dirname(pythonforandroid.__file__)
+            recipe_dir = os.path.join(p4a_dir, "recipes", "freetype")
+            os.makedirs(recipe_dir, exist_ok=True)
+            content = """from pythonforandroid.recipe import Recipe\n\nclass FreetypeRecipe(Recipe):\n    version = '\''2.13.0'\''\n    url = '\''https://sourceforge.net/projects/freetype/files/freetype2/{version}/freetype-{version}.tar.gz'\''\n    patches = []\n\nrecipe = FreetypeRecipe()\n"""
+            with open(os.path.join(recipe_dir, "__init__.py"), "w") as f:
+                f.write(content)
+            print("Successfully patched Freetype recipe to use SourceForge.")
+            '
 
       - run:
           name: Build APK
