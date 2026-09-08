@@ -53,6 +53,16 @@ jobs:
             pip install --user --upgrade pip buildozer cython
 
       - run:
+          name: Pre-cache Freetype to bypass Savannah mirror
+          command: |
+            DOWNLOADS_DIR="$HOME/.buildozer/downloads"
+            mkdir -p "$DOWNLOADS_DIR"
+            # Download a stable release of freetype directly from a reliable mirror
+            FREETYPE_VERSION="2.13.0"
+            wget -c "https://download.savannah.gnu.org/releases/freetype/freetype-$FREETYPE_VERSION.tar.gz" -P "$DOWNLOADS_DIR" || \
+            wget -c "https://sourceforge.net/projects/freetype/files/freetype2/$FREETYPE_VERSION/freetype-$FREETYPE_VERSION.tar.gz" -P "$DOWNLOADS_DIR"
+
+      - run:
           name: Patch Freetype Recipe URL
           command: |
             P4A_RECIPES="/home/circleci/project/.buildozer/android/platform/python-for-android/pythonforandroid/recipes/freetype"
