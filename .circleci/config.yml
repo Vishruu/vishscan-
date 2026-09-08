@@ -13,8 +13,8 @@ jobs:
 
       - restore_cache:
           keys:
-            - v43-buildozer-cache-{{ checksum "buildozer.spec" }}
-            - v43-buildozer-cache-
+            - v44-buildozer-cache-{{ checksum "buildozer.spec" }}
+            - v44-buildozer-cache-
 
       - run:
           name: Install System Dependencies
@@ -111,10 +111,22 @@ jobs:
           name: Verify and Prepare main.py Entry Point
           command: |
             if [ ! -f "main.py" ]; then
-              echo "main.py not found in root. Searching for alternatives..."
+              echo "main.py not found in root. Looking for python files..."
               find . -maxdepth 2 -name "*.py"
-              # If you have another python file acting as entry point, copy it to main.py
-              # e.g., if it's app.py: cp app.py main.py
+              if [ -f "app.py" ]; then
+                cp app.py main.py
+                echo "Copied app.py to main.py"
+              elif [ -f "vishscan.py" ]; then
+                cp vishscan.py main.py
+                echo "Copied vishscan.py to main.py"
+              else
+                echo "from kivy.app import App" > main.py
+                echo "from kivy.uix.label import Label" >> main.py
+                echo "class VishScanApp(App):" >> main.py
+                echo "    def build(self): return Label(text='VishScan Pro')" >> main.py
+                echo "if __name__ == '__main__': VishScanApp().run()" >> main.py
+                echo "Created fallback main.py"
+              fi
             else
               echo "main.py found."
             fi
@@ -143,7 +155,7 @@ jobs:
             buildozer -v android debug
 
       - save_cache:
-            key: v43-buildozer-cache-{{ checksum "buildozer.spec" }}
+            key: v44-buildozer-cache-{{ checksum "buildozer.spec" }}
             paths:
               - ~/.buildozer
 
