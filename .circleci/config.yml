@@ -32,19 +32,20 @@ jobs:
               unzip -q commandlinetools-linux-11076708_latest.zip
               mv cmdline-tools latest
             fi
-            
-            cd $ANDROID_HOME
-            if [ ! -e "tools" ]; then
-              ln -s cmdline-tools/latest tools
-            fi
 
-            export PATH=$ANDROID_HOME/tools/bin:$PATH
-            
+            export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$PATH
+
+            # Pre-accept all standard Android SDK licenses to avoid interactive prompts
             mkdir -p $ANDROID_HOME/licenses
-            echo "24333f8a63b6825ea9c5514f83c2829b004d1fee" > $ANDROID_HOME/licenses/android-sdk-license
-            echo "84831b9409646a918e30573bab4c9c91346d8abd" >> $ANDROID_HOME/licenses/android-sdk-license
-            
-            yes | sdkmanager --licenses --sdk_root=$ANDROID_HOME
+            printf "8933bad161af4178b1185d1a37fbf41ea5269c55\nd56f5187479451eabf01fb78af6dfcb131a6481e\n24333f8a63b6825ea9c5514f83c2829b004d1fee" > $ANDROID_HOME/licenses/android-sdk-license
+            printf "84831b9409646a918e30573bab4c9c91346d8abd\n504667f4c0de7af1a06de9f4b1727b84351f2910" > $ANDROID_HOME/licenses/android-sdk-preview-license
+            printf "601085b94cd77f0b54ff86406957099ebe79c4d6" > $ANDROID_HOME/licenses/android-googletv-license
+            printf "859f317696f67ef3d7f30a50a5560e7834b43903" > $ANDROID_HOME/licenses/android-sdk-arm-dbt-license
+            printf "d975f751698a77b662f1254ddbeed3901e976f5a" > $ANDROID_HOME/licenses/intel-android-extra-license
+            printf "e9acab5b5fbb560a72cfaecce8946896ff6aab9d" > $ANDROID_HOME/licenses/mips-android-sysimage-license
+
+            # Accept any remaining licenses; || true prevents SIGPIPE (exit 141) from failing the step
+            yes | sdkmanager --licenses --sdk_root=$ANDROID_HOME 2>/dev/null || true
             sdkmanager --sdk_root=$ANDROID_HOME "platform-tools" "platforms;android-33" "build-tools;33.0.2"
 
       - run:
@@ -55,7 +56,7 @@ jobs:
       - run:
           name: Build APK
           command: |
-            export PATH=$ANDROID_HOME/tools/bin:$ANDROID_HOME/platform-tools:$PATH
+            export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH
             
             BUILD_TOOLS_DIR=$(ls -d $ANDROID_HOME/build-tools/* | head -n 1)
             if [ -n "$BUILD_TOOLS_DIR" ]; then
