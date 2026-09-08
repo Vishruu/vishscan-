@@ -13,8 +13,8 @@ jobs:
 
       - restore_cache:
           keys:
-            - v6-buildozer-cache-{{ checksum "buildozer.spec" }}
-            - v6-buildozer-cache-
+            - v7-buildozer-cache-{{ checksum "buildozer.spec" }}
+            - v7-buildozer-cache-
 
       - run:
           name: Install System Dependencies
@@ -77,22 +77,23 @@ jobs:
 
             export PATH="$HOME/.local/bin:$PATH"
             
-            # Wipe stale build artifacts
+            # Completely wipe all buildozer caches and platform builds to eliminate ghost architectures
             rm -rf .buildozer/android/platform/build-*
+            rm -rf ~/.buildozer/android/platform/build-*
+            rm -rf ~/.buildozer/android/packages/*
             
-            # Force single architecture explicitly in both spec and global config overrides
-            sed -i 's/^#* *android.archs.*/android.archs = arm64-v8a/g' buildozer.spec
+            # Overwrite both lines in buildozer.spec completely to ensure arm64-v8a is sole arch
+            sed -i 's/^android.archs.*/android.archs = arm64-v8a/g' buildozer.spec
+            sed -i 's/^# *android.archs.*/android.archs = arm64-v8a/g' buildozer.spec
 
             # Unset conflicting NDK env vars
             unset ANDROID_NDK
             unset ANDROID_NDK_HOME
 
-            # Run buildozer with explicit platform override variables if supported, 
-            # or pass it cleanly. Let's run a debug build with forced single architecture spec.
             buildozer -v android debug
 
       - save_cache:
-          key: v6-buildozer-cache-{{ checksum "buildozer.spec" }}
+          key: v7-buildozer-cache-{{ checksum "buildozer.spec" }}
           paths:
             - ~/.buildozer
 
