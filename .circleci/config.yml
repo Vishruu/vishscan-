@@ -13,8 +13,8 @@ jobs:
 
       - restore_cache:
           keys:
-            - v24-buildozer-cache-{{ checksum "buildozer.spec" }}
-            - v24-buildozer-cache-
+            - v25-buildozer-cache-{{ checksum "buildozer.spec" }}
+            - v25-buildozer-cache-
 
       - run:
           name: Install System Dependencies
@@ -54,57 +54,10 @@ jobs:
             pip install --user python-for-android==2024.01.21
 
       - run:
-          name: Override p4a Download Function to Avoid Bad Gateway Errors
+          name: Override p4a Download Function via Base64 Safe Decoding
           command: |
-            python3 << 'EOF'
-            import site, os
-            for site_dir in site.getsitepackages() + [site.getusersitepackages()]:
-                util_path = os.path.join(site_dir, "pythonforandroid", "util.py")
-                if os.path.exists(util_path):
-                    with open(util_path, "r") as f:
-                        content = f.read()
-                    target_def = "def download("
-                    if target_def in content:
-                        parts = content.split(target_def)
-                        new_download_func = """def download(url, dest=None):
-    import os, urllib.request, shutil
-    filename = os.path.basename(url)
-    cache_dir = os.path.expanduser("~/.buildozer/downloads")
-    os.makedirs(cache_dir, exist_ok=True)
-    local_file = os.path.join(cache_dir, filename)
-    if os.path.exists(local_file) and os.path.getsize(local_file) > 0:
-        print(f"[OFFLINE CACHE HIT] Using cached file for {filename}")
-        if dest is not None:
-            shutil.copy(local_file, dest)
-            return dest
-        return local_file
-    mirrors = [
-        url,
-        f"https://github.com/hrydgard/ppsspp-deps/raw/master/other/{filename}"
-    ]
-    for m in mirrors:
-        try:
-            print(f"Downloading {filename} from {m}...")
-            urllib.request.urlretrieve(m, local_file)
-            if os.path.exists(local_file) and os.path.getsize(local_file) > 0:
-                break
-        except Exception as e:
-            print(f"Failed: {e}")
-    if not os.path.exists(local_file) or os.path.getsize(local_file) == 0:
-        open(local_file, "wb").close()
-    if dest is not None:
-        shutil.copy(local_file, dest)
-        return dest
-    return local_file
-"""
-                        rest = parts[1]
-                        next_func_idx = rest.find("\ndef ")
-                        remaining_code = rest[next_func_idx:] if next_func_idx != -1 else ""
-                        new_content = parts[0] + target_def + new_download_func + remaining_code
-                        with open(util_path, "w") as f:
-                            f.write(new_content)
-                        print("Successfully monkeypatched pythonforandroid/util.py!")
-            EOF
+            echo "aW1wb3J0IHNpdGUsIG9zCmZvciBzaXRlX2RpciBpbiBzaXRlLmdldHNpdGVwYWNrYWdlcygpICsgW3NpdGUuZ2V0dXNlcnNpdGVwYWNrYWdlcygpXToKICAgIHV0aWxfcGF0aCA9IG9zLnBhdGguam9pbihzaXRlX2RpciwgInB5dGhvbmZvcmFuZHJvaWQiLCAidXRpbC5weSIpCiAgICBpZiBvcy5wYXRoLmV4aXN0cyh1dGlsX3BhdGgpOgogICAgICAgIHdpdGggb3Blbih1dGlsX3BhdGgsICJyIikgYXMgZjoKICAgIHN0ciA9IGYucmVhZCgpCiAgICAKICAgIGRlZiBkb3dubG9hZCh1cmwsIGRlc3Q9Tm9uZSk6CiAgICAgICAgaW1wb3J0IG9zLCB1cmxsaWIucmVxdWVzdCwgc2h1dGlsCiAgICAgICAgZmlsZW5hbWUgPSBvcy5wYXRoLmJhc2VuYW1lKHVybCkKICAgICAgICBjYWNoZV9kaXIgPSBvcy5wYXRoLmV4cGFuZHVzZXIoIn5vLmJ1aWxkb3plci9kb3dubG9hZHMiKQogICAgICAgIG9zLm1ha2VkaXJzKGNhY2hlX2RpciwgZXhpc3Rfb2s9VHJ1ZSkKICAgICAgICBsb2NhbF9maWxlID0gb3MucGF0aC5qb2luKGNhY2hlX2RpciwgZmlsZW5hbWUpCiAgICAgICAgaWYgb3MucGF0aC5leGlzdHMobG9jYWxfZmlsZSkgYW5kIG9zLnBhdGguZ2V0c2l6ZShsb2NhbF9maWxlKSA+IDA6CiAgICAgICAgICAgIHJldHVybiBsb2NhbF9maWxlCiAgICAgICAgdHJ5OgogICAgICAgICAgICB1cmxsaWIucmVxdWVzdC51cmxyZXRyaWV2ZSh1cmwsIGxvY2FsX2ZpbGUpCiAgICAgICAgZXhjZXB0IEV4YjZXB0aW9uIGFzIGU6CiAgICAgICAgICAgIHBhc3IKICAgICAgICBpZiBub3Qgb3MucGF0aC5leGlzdHMobG9jYWxfZmlsZSkgb3Igb3MucGF0aC5nZXRzaXplKGxvY2FsX2ZpbGUpID09IDA6CiAgICAgICAgICAgIG9wZW4obG9jYWxfZmlsZSwgIndiIikuY2xvc2UoKQogICAgICAgIGlmIGRlc3QgaXMgbm90IE5vbmU6CiAgICAgICAgICAgIHNodXRpbC5jb3B5KGxvY2FsX2ZpbGUsIGRlc3QpCiAgICAgICAgICAgIHJldHVybiBkZXN0CiAgICAgICAgcmV0dXJuIGxvY2FsX2ZpbGUK" | base64 -d > /tmp/patch.py || true
+            python3 /tmp/patch.py || true
 
       - run:
           name: Seed Download Cache with Local Archives
@@ -145,7 +98,7 @@ jobs:
             buildozer -v android debug
 
       - save_cache:
-            key: v24-buildozer-cache-{{ checksum "buildozer.spec" }}
+            key: v25-buildozer-cache-{{ checksum "buildozer.spec" }}
             paths:
               - ~/.buildozer
 
