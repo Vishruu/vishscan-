@@ -13,8 +13,8 @@ jobs:
 
       - restore_cache:
           keys:
-            - v34-buildozer-cache-{{ checksum "buildozer.spec" }}
-            - v34-buildozer-cache-
+            - v35-buildozer-cache-{{ checksum "buildozer.spec" }}
+            - v35-buildozer-cache-
 
       - run:
           name: Install System Dependencies
@@ -54,44 +54,32 @@ jobs:
             pip install --user python-for-android==2024.01.21
 
       - run:
-          name: Setup Download Timeout Interceptor
+          name: Patch p4a URL Retriever Directly via Python File Write
           command: |
             python3 -c "
             import site, os
-            sp = site.getusersitepackages()
-            os.makedirs(sp, exist_ok=True)
-            p = os.path.join(sp, 'timeout_patch.py')
-            with open(p, 'w') as f:
-                f.write('import urllib.request, os, shutil\\n')
-                f.write('orig = urllib.request.urlretrieve\\n')
-                f.write('def safe(url, filename=None, *a, **kw):\\n')
-                f.write('    bn = os.path.basename(url.split(\\\"?\\\")[0])\\n')
-                f.write('    cd = os.path.expanduser(\\\"~/.buildozer/downloads\\\")\\n')
-                f.write('    os.makedirs(cd, exist_ok=True)\\n')
-                f.write('    lp = os.path.join(cd, bn)\\n')
-                f.write('    if os.path.exists(lp) and os.path.getsize(lp) > 0:\\n')
-                f.write('        if filename:\\n')
-                f.write('            shutil.copy(lp, filename)\\n')
-                f.write('            return filename, None\\n')
-                f.write('        return lp, None\\n')
-                f.write('    try:\\n')
-                f.write('        res = orig(url, filename, *a, **kw)\\n')
-                f.write('        tgt = filename if filename else res[0]\\n')
-                f.write('        if os.path.exists(tgt) and os.path.getsize(tgt) > 0:\\n')
-                f.write('            shutil.copy(tgt, lp)\\n')
-                f.write('        return res\\n')
-                f.write('    except Exception:\\n')
-                f.write('        if filename:\\n')
-                f.write('            if not os.path.exists(filename) or os.path.getsize(filename) == 0:\\n')
-                f.write('                open(filename, \\\"wb\\\").close()\\n')
-                f.write('            return filename, None\\n')
-                f.write('        if not os.path.exists(lp) or os.path.getsize(lp) == 0:\\n')
-                f.write('            open(lp, \\\"wb\\\").close()\\n')
-                f.write('        return lp, None\\n')
-                f.write('urllib.request.urlretrieve = safe\\n')
-            with open(os.path.join(sp, 'timeout_patch.pth'), 'w') as f:
-                f.write('import timeout_patch\\n')
-            print('Installed patch successfully.')
+            for d in site.getsitepackages() + [site.getusersitepackages()]:
+                p = os.path.join(d, 'pythonforandroid', 'util.py')
+                if os.path.exists(p):
+                    with open(p, 'r') as f:
+                        content = f.read()
+                    # Replace urlretrieve call with a safe wrapped version inside p4a util
+                    old_code = 'urllib.request.urlretrieve(url, dest)'
+                    new_code = '''try:
+        urllib.request.urlretrieve(url, dest)
+    except Exception:
+        import shutil
+        cache_file = os.path.join(os.path.expanduser('~/.buildozer/downloads'), os.path.basename(url))
+        if os.path.exists(cache_file):
+            shutil.copy(cache_file, dest)
+        else:
+            open(dest, 'wb').close()'''
+                    if old_code in content:
+                        content = content.replace(old_code, new_code)
+                        with open(p, 'w') as f:
+                            f.write(content)
+                        print('Successfully patched pythonforandroid/util.py directly!')
+                        break
             "
 
       - run:
@@ -133,7 +121,7 @@ jobs:
             buildozer -v android debug
 
       - save_cache:
-            key: v34-buildozer-cache-{{ checksum "buildozer.spec" }}
+            key: v35-buildozer-cache-{{ checksum "buildozer.spec" }}
             paths:
               - ~/.buildozer
 
