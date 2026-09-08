@@ -13,8 +13,8 @@ jobs:
 
       - restore_cache:
           keys:
-            - v11-buildozer-cache-{{ checksum "buildozer.spec" }}
-            - v11-buildozer-cache-
+            - v12-buildozer-cache-{{ checksum "buildozer.spec" }}
+            - v12-buildozer-cache-
 
       - run:
           name: Install System Dependencies
@@ -81,16 +81,14 @@ jobs:
             rm -rf .buildozer/
             rm -rf ~/.buildozer/android/platform/build-*
             
-            # Use regex to robustly overwrite any android.archs configuration in spec
+            # Completely strip out any archs lines and enforce only arm64-v8a at the end
             python3 -c "
-            import re
             with open('buildozer.spec', 'r') as f:
-                content = f.read()
-            content = re.sub(r'#?\s*android.archs\s*=.*', 'android.archs = arm64-v8a', content)
-            if 'android.archs =' not in content:
-                content += '\nandroid.archs = arm64-v8a\n'
+                lines = f.readlines()
+            new_lines = [line for line in lines if 'archs' not in line]
+            new_lines.append('\nandroid.archs = arm64-v8a\n')
             with open('buildozer.spec', 'w') as f:
-                f.write(content)
+                f.writelines(new_lines)
             "
 
             # Unset conflicting NDK env vars
@@ -100,7 +98,7 @@ jobs:
             buildozer -v android debug
 
       - save_cache:
-          key: v11-buildozer-cache-{{ checksum "buildozer.spec" }}
+          key: v12-buildozer-cache-{{ checksum "buildozer.spec" }}
           paths:
             - ~/.buildozer
 
