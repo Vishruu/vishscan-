@@ -13,8 +13,8 @@ jobs:
 
       - restore_cache:
           keys:
-            - v9-buildozer-cache-{{ checksum "buildozer.spec" }}
-            - v9-buildozer-cache-
+            - v10-buildozer-cache-{{ checksum "buildozer.spec" }}
+            - v10-buildozer-cache-
 
       - run:
           name: Install System Dependencies
@@ -45,8 +45,6 @@ jobs:
             echo "84831b9409646a918e30573bab4c9c91346d8abd" >> $ANDROID_HOME/licenses/android-sdk-license
             
             yes | sdkmanager --licenses --sdk_root=$ANDROID_HOME || true
-            
-            # Explicitly install build-tools and platform components so aidl is guaranteed to exist
             sdkmanager --sdk_root=$ANDROID_HOME "platform-tools" "platforms;android-33" "build-tools;33.0.2"
 
       - run:
@@ -79,12 +77,21 @@ jobs:
 
             export PATH="$HOME/.local/bin:$PATH"
             
-            # Clear out bad build artifacts
+            # Completely wipe old build artifacts and caches
             rm -rf .buildozer/
             rm -rf ~/.buildozer/android/platform/build-*
             
-            # Force single architecture explicitly
-            sed -i 's/^android.archs.*/android.archs = arm64-v8a/g' buildozer.spec
+            # Use a Python script to reliably enforce single architecture in buildozer.spec, bypassing fragile sed expressions
+            python3 -c "
+            with open('buildozer.spec', 'r') as f:
+                lines = f.readlines()
+            with open('buildozer.spec', 'w') as f:
+                for line in lines:
+                    if line.strip().startswith('android.archs') or 'android.archs' in line:
+                        f.write('android.archs = arm64-v8a\n')
+                    else:
+                        f.write(line)
+            "
 
             # Unset conflicting NDK env vars
             unset ANDROID_NDK
@@ -93,7 +100,7 @@ jobs:
             buildozer -v android debug
 
       - save_cache:
-          key: v9-buildozer-cache-{{ checksum "buildozer.spec" }}
+          key: v10-buildozer-cache-{{ checksum "buildozer.spec" }}
           paths:
             - ~/.buildozer
 
