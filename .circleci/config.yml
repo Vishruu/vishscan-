@@ -13,8 +13,8 @@ jobs:
 
       - restore_cache:
           keys:
-            - v44-buildozer-cache-{{ checksum "buildozer.spec" }}
-            - v44-buildozer-cache-
+            - v45-buildozer-cache-{{ checksum "buildozer.spec" }}
+            - v45-buildozer-cache-
 
       - run:
           name: Install System Dependencies
@@ -139,7 +139,7 @@ jobs:
               export PATH=$ANDROID_HOME/build-tools/33.0.2:$PATH
             fi
             export PATH="$HOME/.local/bin:$PATH"
-            rm -rf .buildozer/
+            
             python3 -c "
             import configparser
             config = configparser.ConfigParser()
@@ -152,10 +152,18 @@ jobs:
             "
             unset ANDROID_NDK
             unset ANDROID_NDK_HOME
-            buildozer -v android debug
+            
+            buildozer -v android debug || {
+              echo "=== GRADLE BUILD FAILED. ATTEMPTING TO DUMP LOGS === "
+              if [ -d ".buildozer/android/platform/build-arm64-v8a/dists/vishscan" ]; then
+                cd .buildozer/android/platform/build-arm64-v8a/dists/vishscan
+                ./gradlew assembleDebug --stacktrace --info || true
+              fi
+              exit 1
+            }
 
       - save_cache:
-            key: v44-buildozer-cache-{{ checksum "buildozer.spec" }}
+            key: v45-buildozer-cache-{{ checksum "buildozer.spec" }}
             paths:
               - ~/.buildozer
 
