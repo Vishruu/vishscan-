@@ -13,8 +13,8 @@ jobs:
 
       - restore_cache:
           keys:
-            - v30-buildozer-cache-{{ checksum "buildozer.spec" }}
-            - v30-buildozer-cache-
+            - v31-buildozer-cache-{{ checksum "buildozer.spec" }}
+            - v31-buildozer-cache-
 
       - run:
           name: Install System Dependencies
@@ -56,7 +56,7 @@ jobs:
       - run:
           name: Patch p4a Download Utility
           command: |
-            cat << 'EOF' > patch.py
+            python3 -c "
             import site, os
             for site_dir in site.getsitepackages() + [site.getusersitepackages()]:
                 util_path = os.path.join(site_dir, 'pythonforandroid', 'util.py')
@@ -94,8 +94,7 @@ jobs:
                             f.write(parts[0] + 'def download(' + new_func + remaining)
                         print('Successfully patched pythonforandroid/util.py!')
                         break
-            EOF
-            python3 patch.py
+            "
 
       - run:
           name: Seed Download Cache with Local Archives
@@ -136,7 +135,7 @@ jobs:
             buildozer -v android debug
 
       - save_cache:
-            key: v30-buildozer-cache-{{ checksum "buildozer.spec" }}
+            key: v31-buildozer-cache-{{ checksum "buildozer.spec" }}
             paths:
               - ~/.buildozer
 
