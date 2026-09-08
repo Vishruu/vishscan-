@@ -13,8 +13,8 @@ jobs:
 
       - restore_cache:
           keys:
-            - v38-buildozer-cache-{{ checksum "buildozer.spec" }}
-            - v38-buildozer-cache-
+            - v39-buildozer-cache-{{ checksum "buildozer.spec" }}
+            - v39-buildozer-cache-
 
       - run:
           name: Install System Dependencies
@@ -54,14 +54,15 @@ jobs:
             pip install --user python-for-android==2024.01.21
 
       - run:
-          name: Setup Global Download Fallback Hook via sitecustomize
+          name: Setup Global Download Fallback Hook via Base64
           command: |
             python3 -c "
-            import site, os
-            sp = site.getusersitepackages()
-            os.makedirs(sp, exist_ok=True)
-            hook_path = os.path.join(sp, 'sitecustomize.py')
-            code = '''import urllib.request, os, shutil
+            import base64
+            code = '''import site, os, shutil, urllib.request
+sp = site.getusersitepackages()
+os.makedirs(sp, exist_ok=True)
+hook_path = os.path.join(sp, 'sitecustomize.py')
+hook_code = '''import urllib.request, os, shutil
 orig = urllib.request.urlretrieve
 def safe_retrieve(url, filename=None, *a, **kw):
     try:
@@ -79,9 +80,13 @@ def safe_retrieve(url, filename=None, *a, **kw):
         raise
 urllib.request.urlretrieve = safe_retrieve
 '''
-            with open(hook_path, 'w') as f:
-                f.write(code)
-            print('Successfully created global sitecustomize fallback hook!')
+with open(hook_path, 'w') as f:
+    f.write(hook_code)
+print('Successfully created sitecustomize via script!')
+'''
+            encoded = base64.b64encode(code.encode('utf-8')).decode('utf-8')
+            import os
+            os.system(f'python3 -c \"import base64; exec(base64.b64decode(\\\"{encoded}\\\").decode(\\\'utf-8\\\"))\"')
             "
 
       - run:
@@ -90,7 +95,7 @@ urllib.request.urlretrieve = safe_retrieve
             mkdir -p ~/.buildozer/downloads
             curl -L -o ~/.buildozer/downloads/Python-3.10.10.tgz "https://www.python.org/ftp/python/3.10.10/Python-3.10.10.tgz" || true
             curl -L -o ~/.buildozer/downloads/setuptools-67.5.1.tar.gz "https://files.pythonhosted.org/packages/source/s/setuptools/setuptools-67.5.1.tar.gz" || true
-            curl -L -o ~/.buildozer/downloads/openssl-1.1.1u.tar.gz "https://www.openssl.org/source/openssl-1.1.1u.tar.gz" || true
+            curl -L -0 ~/.buildozer/downloads/openssl-1.1.1u.tar.gz "https://www.openssl.org/source/openssl-1.1.1u.tar.gz" || true
             curl -L -o ~/.buildozer/downloads/sqlite-autoconf-3410200.tar.gz "https://www.sqlite.org/2023/sqlite-autoconf-3410200.tar.gz" || true
             curl -L -o ~/.buildozer/downloads/SDL2-2.26.5.tar.gz "https://github.com/libsdl-org/SDL/releases/download/release-2.26.5/SDL2-2.26.5.tar.gz" || true
             curl -L -o ~/.buildozer/downloads/SDL2_image-2.6.2.tar.gz "https://github.com/libsdl-org/SDL_image/releases/download/release-2.6.2/SDL2_image-2.6.2.tar.gz" || true
@@ -123,7 +128,7 @@ urllib.request.urlretrieve = safe_retrieve
             buildozer -v android debug
 
       - save_cache:
-            key: v38-buildozer-cache-{{ checksum "buildozer.spec" }}
+            key: v39-buildozer-cache-{{ checksum "buildozer.spec" }}
             paths:
               - ~/.buildozer
 
