@@ -6,15 +6,15 @@ jobs:
       - image: cimg/python:3.10
     resource_class: large
     environment:
-      ANDROID_HOME: /home/circleci/project/.buildozer/android/platform/android-sdk
-      ANDROID_SDK_ROOT: /home/circleci/project/.buildozer/android/platform/android-sdk
+      ANDROID_HOME: /home/circleci/.buildozer/android/platform/android-sdk
+      ANDROID_SDK_ROOT: /home/circleci/.buildozer/android/platform/android-sdk
     steps:
       - checkout
 
       - restore_cache:
           keys:
-            - v4-buildozer-cache-{{ checksum "buildozer.spec" }}
-            - v4-buildozer-cache-
+            - v5-buildozer-cache-{{ checksum "buildozer.spec" }}
+            - v5-buildozer-cache-
 
       - run:
           name: Install System Dependencies
@@ -48,6 +48,11 @@ jobs:
             yes | sdkmanager --licenses --sdk_root=$ANDROID_HOME 2>/dev/null || true
             sdkmanager --sdk_root=$ANDROID_HOME "platform-tools" "platforms;android-33" "build-tools;33.0.2"
 
+            # Create tools/bin/sdkmanager symlink for buildozer/p4a compatibility.
+            # p4a checks tools/bin/sdkmanager (old layout), not cmdline-tools/latest/bin/sdkmanager.
+            mkdir -p $ANDROID_HOME/tools/bin
+            ln -sf $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager $ANDROID_HOME/tools/bin/sdkmanager
+
       - run:
           name: Install Python Dependencies
           command: |
@@ -55,10 +60,11 @@ jobs:
 
       - run:
           name: Build APK
+          no_output_timeout: 90m
           command: |
             export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH
 
-            BUILD_TOOLS_DIR=$(ls -d $ANDROID_HOME/build-tools/* | head -n 1)
+            BUILD_TOOLS_DIR=$(ls -d $ANDROID_HOME/build-tools/* 2>/dev/null | head -n 1)
             if [ -n "$BUILD_TOOLS_DIR" ]; then
               export PATH=$BUILD_TOOLS_DIR:$PATH
               echo "Added $BUILD_TOOLS_DIR to PATH"
@@ -69,24 +75,18 @@ jobs:
             unset ANDROID_NDK
             unset ANDROID_NDK_HOME
 
-            # Pre-accept licenses in buildozer's own SDK directory (~/.buildozer),
-            # which is separate from $ANDROID_HOME (project dir) used above.
-            BUILDOZER_SDK=~/.buildozer/android/platform/android-sdk
-            mkdir -p "$BUILDOZER_SDK/licenses"
-            printf "8933bad161af4178b1185d1a37fbf41ea5269c55\nd56f5187479451eabf01fb78af6dfcb131a6481e\n24333f8a63b6825ea9c5514f83c2829b004d1fee" > "$BUILDOZER_SDK/licenses/android-sdk-license"
-            printf "84831b9409646a918e30573bab4c9c91346d8abd\n504667f4c0de7af1a06de9f4b1727b84351f2910" > "$BUILDOZER_SDK/licenses/android-sdk-preview-license"
-            printf "601085b94cd77f0b54ff86406957099ebe79c4d6" > "$BUILDOZER_SDK/licenses/android-googletv-license"
-            printf "859f317696f67ef3d7f30a50a5560e7834b43903" > "$BUILDOZER_SDK/licenses/android-sdk-arm-dbt-license"
-            printf "d975f751698a77b662f1254ddbeed3901e976f5a" > "$BUILDOZER_SDK/licenses/intel-android-extra-license"
-            printf "e9acab5b5fbb560a72cfaecce8946896ff6aab9d" > "$BUILDOZER_SDK/licenses/mips-android-sysimage-license"
-
-            buildozer android debug
+            for attempt in 1 2 3; do
+              echo "=== Build attempt $attempt/3 ==="
+              buildozer android debug && exit 0
+              echo "Attempt $attempt failed."
+              [ $attempt -lt 3 ] && echo "Waiting 60s before retry..." && sleep 60
+            done
+            exit 1
 
       - save_cache:
-          key: v4-buildozer-cache-{{ checksum "buildozer.spec" }}
+          key: v5-buildozer-cache-{{ checksum "buildozer.spec" }}
           paths:
             - ~/.buildozer
-            - .buildozer
 
       - store_artifacts:
             path: bin/
