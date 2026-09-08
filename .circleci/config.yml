@@ -73,6 +73,9 @@ jobs:
 
             export PATH="$HOME/.local/bin:$PATH"
             
+            # Force single architecture to avoid multi-arch toolchain race conditions
+            sed -i 's/^#* *android.archs.*/android.archs = arm64-v8a/g' buildozer.spec
+
             unset ANDROID_NDK
             unset ANDROID_NDK_HOME
 
