@@ -13,8 +13,8 @@ jobs:
 
       - restore_cache:
           keys:
-            - v23-buildozer-cache-{{ checksum "buildozer.spec" }}
-            - v23-buildozer-cache-
+            - v24-buildozer-cache-{{ checksum "buildozer.spec" }}
+            - v24-buildozer-cache-
 
       - run:
           name: Install System Dependencies
@@ -54,9 +54,9 @@ jobs:
             pip install --user python-for-android==2024.01.21
 
       - run:
-          name: Override p4a Download Function Completely to Avoid Python.org Bad Gateway Errors
+          name: Override p4a Download Function to Avoid Bad Gateway Errors
           command: |
-            python3 -c '
+            python3 << 'EOF'
             import site, os
             for site_dir in site.getsitepackages() + [site.getusersitepackages()]:
                 util_path = os.path.join(site_dir, "pythonforandroid", "util.py")
@@ -80,8 +80,7 @@ jobs:
         return local_file
     mirrors = [
         url,
-        f"https://github.com/hrydgard/ppsspp-deps/raw/master/other/{filename}",
-        f"https://files.pythonhosted.org/packages/source/{filename[0]}/{filename.split("-")[0]}/{filename}"
+        f"https://github.com/hrydgard/ppsspp-deps/raw/master/other/{filename}"
     ]
     for m in mirrors:
         try:
@@ -90,9 +89,8 @@ jobs:
             if os.path.exists(local_file) and os.path.getsize(local_file) > 0:
                 break
         except Exception as e:
-            print(f"Failed to download from {m}: {e}")
+            print(f"Failed: {e}")
     if not os.path.exists(local_file) or os.path.getsize(local_file) == 0:
-        print(f"Warning: Could not download {filename}. Creating empty placeholder.")
         open(local_file, "wb").close()
     if dest is not None:
         shutil.copy(local_file, dest)
@@ -105,8 +103,8 @@ jobs:
                         new_content = parts[0] + target_def + new_download_func + remaining_code
                         with open(util_path, "w") as f:
                             f.write(new_content)
-                        print("Successfully monkeypatched pythonforandroid/util.py download function!")
-            '
+                        print("Successfully monkeypatched pythonforandroid/util.py!")
+            EOF
 
       - run:
           name: Seed Download Cache with Local Archives
@@ -127,16 +125,11 @@ jobs:
           name: Build APK
           command: |
             export PATH=$ANDROID_HOME/tools/bin:$ANDROID_HOME/platform-tools:$PATH
-            
             if [ -d "$ANDROID_HOME/build-tools/33.0.2" ]; then
               export PATH=$ANDROID_HOME/build-tools/33.0.2:$PATH
-              echo "Exported build-tools 33.0.2 to PATH"
             fi
-
             export PATH="$HOME/.local/bin:$PATH"
-            
             rm -rf .buildozer/
-            
             python3 -c "
             import configparser
             config = configparser.ConfigParser()
@@ -147,14 +140,12 @@ jobs:
             with open('buildozer.spec', 'w') as configfile:
                 config.write(configfile)
             "
-
             unset ANDROID_NDK
             unset ANDROID_NDK_HOME
-
             buildozer -v android debug
 
       - save_cache:
-            key: v23-buildozer-cache-{{ checksum "buildozer.spec" }}
+            key: v24-buildozer-cache-{{ checksum "buildozer.spec" }}
             paths:
               - ~/.buildozer
 
