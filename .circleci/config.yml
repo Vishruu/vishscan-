@@ -13,8 +13,8 @@ jobs:
 
       - restore_cache:
           keys:
-            - v45-buildozer-cache-{{ checksum "buildozer.spec" }}
-            - v45-buildozer-cache-
+            - v46-buildozer-cache-{{ checksum "buildozer.spec" }}
+            - v46-buildozer-cache-
 
       - run:
           name: Install System Dependencies
@@ -23,7 +23,7 @@ jobs:
             sudo apt install -y openjdk-17-jdk git zip unzip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev cmake libffi-dev libssl-dev
 
       - run:
-          name: Install Android SDK & Build Tools
+          name: Install Android SDK, Build Tools & API 31+
           command: |
             mkdir -p $ANDROID_HOME/cmdline-tools
             if [ ! -d "$ANDROID_HOME/cmdline-tools/latest" ]; then
@@ -45,6 +45,7 @@ jobs:
             echo "84831b9409646a918e30573bab4c9c91346d8abd" >> $ANDROID_HOME/licenses/android-sdk-license
             
             yes | sdkmanager --licenses --sdk_root=$ANDROID_HOME || true
+            # Bump compile SDK to android-33 so Bluetooth permissions are recognized by compiler
             sdkmanager --sdk_root=$ANDROID_HOME "platform-tools" "platforms;android-33" "build-tools;33.0.2"
 
       - run:
@@ -147,6 +148,8 @@ jobs:
             config.read('buildozer.spec')
             if 'app' in config:
                 config['app']['android.archs'] = 'arm64-v8a'
+                config['app']['android.api'] = '33'
+                config['app']['android.minapi'] = '21'
             with open('buildozer.spec', 'w') as configfile:
                 config.write(configfile)
             "
@@ -163,7 +166,7 @@ jobs:
             }
 
       - save_cache:
-            key: v45-buildozer-cache-{{ checksum "buildozer.spec" }}
+            key: v46-buildozer-cache-{{ checksum "buildozer.spec" }}
             paths:
               - ~/.buildozer
 
